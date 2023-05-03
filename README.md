@@ -43,9 +43,9 @@
 
 ![image](https://user-images.githubusercontent.com/120711406/235872521-33d3533d-7baf-4a72-9449-1253a5e2006d.png)
 
-### 4.2. 로그인 기능 구현
+### 4.2. AWS S3 - AWS IAM, S3 bucket 생성 및 업로드 공통 클래스 작성
 
-![mvc](https://github.com/kim17841/OTTproject/blob/main/Portfolio/login.jpg?raw=true)
+![image](https://user-images.githubusercontent.com/120711406/235873702-5127c63d-19e5-406b-8919-01dd323d2255.png)
 
 <details>
 <summary> <b>기능 설명</b> </summary>
