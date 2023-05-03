@@ -50,15 +50,20 @@
 
 <details>
 <summary> <b>IAM 권한설정</b> </summary>
+	
 - IAM 사용자 생성
 - 권한으로 AmazonS3FullAccess 추가
+	
 ![image](https://user-images.githubusercontent.com/120711406/235908642-a1dbf375-e3ad-4c73-a6bb-b291ad0f3e58.png)
+	
 </details>
 	
 <details>
 <summary> <b>버킷 정책 생성</b> </summary>
 - 버킷을 사용하기 위해 정책생성
+	
 ![image](https://user-images.githubusercontent.com/120711406/235909022-146e7ec1-4f9d-4f64-a8ec-326a74e954a5.png)
+	
 </details>
 	
 <details>
@@ -91,7 +96,6 @@ public class S3FileUploadService {
             String saveFileName = getUuid() + ext; //uuid로 새이름 만들기
             Map<String, String> map = new HashMap<>();
             map.put("saveFile", saveFileName);
-//            System.out.println("s3맵 : " + saveFileName );
             fileList.add(map);
         }
 
