@@ -205,6 +205,8 @@ public class S3FileUploadService {
 - AWS를 처음 다루게되어 개념이해에 어려움이 있었음.
 - AWS는 업데이트가 빠르기 때문에 최신 정보를 찾기가 힘들었음. (대부분의 메뉴가 변경되었음)
 - Spring Legacy 프로젝트는 Spring boot 에 비해 properties나 yalm파일을 활용하기 복잡했음.
+- IAM 사용자 키가 깃허브에 노출되었을땐 AWS에서 메일로 경고만 주는것 뿐만 아니라, 권한을 변경해버린다.
+- AWS에서는 키가 노출되었을 경우, 사용자 삭제후 재생성을 추천한다. (키발급만 다시하는것 보다) (항상 주의하자)
 
 </details>
   
