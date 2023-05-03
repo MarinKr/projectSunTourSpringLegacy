@@ -506,318 +506,354 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
 <details>
 <summary> <b>기능 설명</b> </summary>
 
-  - 프로필 변경버튼을 누르면 파일 선택이 진행되어 사용자가 선택한 이미지로 프로필이 바뀜.
-
-  - 변경된 프로필은 사용자가 로그인하는 동안에 다른 페이지에서도 상단에 이미지가 유지.
+  - 유저와 판매자 간의 1:1 채팅방 구현
+  - 채팅방 목록, 대화로그 저장, 대화 조회 여부 확인, 새로운 메세지 도착 알림 구현
 
 </details>
   
 <details>
-
-  <summary> <b>JSP</b> </summary>
-
+<summary> <b>STOMP 웹소켓 설정 클래스</b> </summary>
   
-- 사용자가 프로필을 변경하면 JS를 통해 form태그에 해당 이미지를 Controller로 전송합니다.
-- 사용자가 설정해 놓은 이미지가 없을 경우 기본 이미지를 출력합니다.
-- 설정한 이미지가 있을 경우 내 페이지와 다른 페이지 상단에 프로필 이미지를 출력합니다.
-- 사용자가 영상에 댓글을 남기면 설정한 프로필이 나옵니다.
+- 엔드포인트와 publish subscribe 값 설정
+- 소켓JS 사용 설정
 
-  <details>
-    <summary> <b>네비바 이미지 출력</b> </summary>
+```java
+@Configuration
+@EnableWebSocketMessageBroker//Stomp를 사용하기 위해 선언
+public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
- 
-    ```
-    <!-- 상단에 프로필 이미지 출력 -->
-    (...생략...)
-    <c:choose>
-        <!-- 사용자가 변경한 이미지가 있을 경우 -->
-        <c:when test="${img != null && img != ''}">
-            <img src="${img}" id="img_onload" class="img_tag"> 
-        </c:when>
-        <!-- 사용자가 변경한 이미지가 없을 경우 -->
-        <c:when test="${img == null}">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxmp7sE1ggI4
-            _L7NGZWcQT9EyKaqKLeQ5RBg&usqp=CAU" class="img_tag">
-        </c:when>
-    </c:choose>
-    (...생략...)
-    ```
+    @Override
+    public void registerStompEndpoints(StompEndpointRegistry registry) {
+        registry.addEndpoint("/stomp/chat") //엔드포인트
+                .setAllowedOrigins("http://localhost:8080")
+                .withSockJS();
+    }
 
-  </details>
-    <details>
-    <summary> <b>프로필 이미지 등록/변경</b> </summary>
+    /*어플리케이션 내부에서 사용할 path를 지정할 수 있음*/
+    @Override
+    public void configureMessageBroker(MessageBrokerRegistry registry) {
+        registry.setApplicationDestinationPrefixes("/pub"); //클라이언트에서 SEND요청을 처리
+        registry.enableSimpleBroker("/sub"); //경로에 SimpleBroker를 등록 
+                                                            // 해당 경로를 Subscribe하는 client에게 메시지를 전달
+        //.enableStompBrokerRelay = SimpleBroker의 기능과 외부 Message Broker( RabbitMQ, ActiveMQ 등 )에 메세지를 전달
+    }
+}
+```
 
-    
-    ```
-    <!-- 내 페이지 프로필 변경-->
-    (... 생략...)
-    <div class="left-side">
-    <!-- 프로필 기능 -->
-        <c:choose>
-            <!-- 사용자가 설정한 이미지가 있을 경우 -->
-            <c:when test="${data.img != null && data.img != ''}">
-                <img src="${data.img}" id="img_onload" class="img_tag"> 
-            </c:when>
-            <!-- 사용자가 설정한 이미지가 없을 경우 - 기본이미지 -->
-            <c:when test="${data.img == null}">
-                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxmp7sE1gg
-                I4_L7NGZWcQT9EyKaqKLeQ5RBg&usqp=CAU" class="img_tag">
-            </c:when>
-        </c:choose>
-        <!-- 프로필 변경 버튼 - input type을 display : none하고 label로 연결 -->
-        <div class="input_file_box">
-            <label class="input_button" for="uploadFile">프로필 변경</label>
-            <input type="file" name='uploadFile' id="uploadFile">
-        </div>
-    </div>
-    (... 생략...)
-    ```
+<details>
+<summary> <b>Chat Controller</b> </summary>
 
-  </details>
+- 메세지 매핑으로 해당 구독url로 메세지를 전달해준다.
+- DTO를 DB에 전달, 메세지 로그를 저장한다.
+- 메세지 도착 실시간 알림을 구독 url로 전달해 준다.
+
+```java
+@Controller
+public class StompChatController {
+    private final SimpMessagingTemplate template; //특정 Broker로 메세지를 전달
+    private final ChatRoomRepository repository;
+
+
+    public StompChatController(SimpMessagingTemplate template, ChatRoomRepository repository) {
+        this.template = template;
+        this.repository = repository;
+    }
+
+    //Client가 SEND할 수 있는 경로
+    //stompConfig에서 설정한 applicationDestinationPrefixes와 @MessageMapping 경로가 병합됨
+    //"/pub/chat/enter"
+    @MessageMapping(value = "/chat/enter")
+    public void enter(ChatMessageDTO chatMessageDTO) {
+        chatMessageDTO.setMsg_content(chatMessageDTO.getSend_id() + "님이 채팅방에 참여하였습니다.");
+        template.convertAndSend("/sub/chat/room/" + chatMessageDTO.getMsg_idx(), chatMessageDTO);
+    }
+
+    @MessageMapping(value = "/chat/message") //DTO = roomid, message, 보낸사람, 받는사람
+    public void message(ChatMessageDTO chatMessageDTO) {
+        template.convertAndSend("/sub/chat/room/" + chatMessageDTO.getMsg_idx(), chatMessageDTO);
+        repository.saveMessageLog(chatMessageDTO);  //로그 DB에 저장
+        //실시간 알람
+        String alarmDestination = "/sub/chat/alarm/" + chatMessageDTO.getReceive_id();
+        String alarmMessage = chatMessageDTO.getSend_id() + "님의 새로운 메세지";
+        template.convertAndSend(alarmDestination, alarmMessage);
+    }
+}
+```
+
+</details>
   
-     <details>
-    <summary> <b>댓글 프로필 출력</b> </summary>
+<details>
+<summary> <b>Room Controller</b> </summary>
 
-    
-    ```
-    <!-- 내 페이지 프로필 변경-->
-    (... 생략...)
-    <div class="left-side">
-  <!-- 댓글에 사용자의 프로필 이미지 출력 -->
-  <div class="user_img_area">
-      <c:choose>
-          <!-- 컨트롤러에서 리턴한 이미지를 받고 ready를 통해 함수 호출 -> 이미지 출력 -->
-          <c:when test="${comt.img != null && comt.img != ''}">
-              <img src="${comt.img}" class="com_img">
-          </c:when>
-          <c:when test="${comt.img == null}">
-              <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxmp7sE1gg
-              I4_L7NGZWcQT9EyKaqKLeQ5RBg&usqp=CAU" class="default_img">
-          </c:when>
-      </c:choose>
-  </div>
-    ```
-  </details>
+- 채팅방 개설, 실제 채팅방, 목록조회 구현
+- 여러 조건을 사용해 어뷰징을 차단
+
+```java
+@RequestMapping(value = "/chat")
+@Controller
+public class RoomController {
+
+    private final ChatRoomRepository repository;
+
+    public RoomController(ChatRoomRepository repository) {
+        this.repository = repository;
+    }
+
+    //채팅방 목록 조회
+    @GetMapping(value = "/rooms/{user_id}")
+    public ModelAndView rooms(@PathVariable("user_id") String user_id, HttpSession httpSession, ModelAndView mv) {
+        String sessionId = String.valueOf(httpSession.getAttribute("user_id"));
+        if (sessionId.equals(user_id)) { //뷰에서 넘어온 user_id와 session user_id를 비교해서 일치하면 채팅방 목록을 보여줌
+            mv.setViewName("/plan/rooms");
+            if (repository.checkReadOrNot(sessionId) != null) {
+                mv.addObject("YorN", repository.checkReadOrNot(sessionId)); // 읽지않은 메세지가 있는지 DB에서 확인
+            }
+            mv.addObject("list", repository.findAllRooms(sessionId)); //세션아이디가 가지고 있는 모든 채팅방 리스트 가져오기
+        } else {
+            mv.setViewName("redirect:/user/signin");    //일치하지 않으면 로그인페이지로 보냄
+        }
+        return mv;
+    }
+
+    //채팅방 개설
+    @PostMapping(value = "/room") //form으로 받는데이터 = send_id & receive_id
+    public String create(ChatRoomDTO chatRoomDTO, ModelAndView mv) {
+        if (chatRoomDTO.getSend_id().equals(chatRoomDTO.getReceive_id())) {
+            return "redirect:/plan/list";   // 플래너가 본인에게 채팅 요청했을시
+        }
+        ChatRoomDTO formData = chatRoomDTO; // 폼에서 받아온 dto
+        System.out.println("폼으로 받아온 dto : " + formData.toString());
+
+        if (repository.findRoomByName(formData) != null) {  //이미 해당 플래너와 채팅방이 존재하면 존재하는 방으로 이동시킴
+            int msg_idx = repository.findRoomByName(formData).getMsg_idx();
+            System.out.println("방이 존재할때 가져온 방 idx : " + msg_idx);
+            return "redirect:/chat/room/" + msg_idx;
+        } else {                                             //없다면 새로 생성해주고 방으로 이동
+            repository.createChatRoomDTO(formData);
+            int msg_idx = chatRoomDTO.getMsg_idx();
+            System.out.println("방만들고 받아온 idx : " + chatRoomDTO.getMsg_idx());
+            return "redirect:/chat/room/" + msg_idx;
+        }
+    }
+
+    // 실제 채팅방
+    @GetMapping("/room/{msg_idx}")
+    public String getRoom(@PathVariable("msg_idx") int msg_idx, Model model, HttpSession httpSession) {
+        String sessionAuth = String.valueOf(httpSession.getAttribute("auth"));
+        String user = "";
+        String planner = "";
+        if (sessionAuth.equals("auth_c")) { //무분별한 겟요청으로 채팅방 열람을 막기위해 세션아이디를 가져옴
+            user = String.valueOf(httpSession.getAttribute("user_id")); // 유저 일때 아이디
+            System.out.println("유저아이디 : " + user);
+        } else if (sessionAuth.equals("auth_b")) {
+            planner = String.valueOf(httpSession.getAttribute("user_id"));  // 플래너 일때 아이디
+            System.out.println("플래너아이디 : " + planner);
+        } else {
+            return "redirect:/main"; // 둘다 아니면 메인으로
+        }
+        ChatRoomDTO chatRoomDTO = new ChatRoomDTO();
+        chatRoomDTO.setMsg_idx(msg_idx);
+        chatRoomDTO = repository.findRoomById(chatRoomDTO);
+        if (chatRoomDTO.getSend_id().equals(user)
+                || chatRoomDTO.getReceive_id().equals(planner)) { // 보낸아이디와 세션유저아이디가 맞거나
+            int roomID = chatRoomDTO.getMsg_idx();
+            if (repository.findMessageLog(roomID) != null) {  //로그를 찾아왔을때
+                //세션값이 receive_id 일때 N-> Y 메세지 읽음 표시
+                Map<String, String> map = new HashMap<>();
+                map.put("msg_idx", String.valueOf(roomID));
+                map.put("session_id", String.valueOf(httpSession.getAttribute("user_id")));
+                repository.readNtoY(map);
+                model.addAttribute("chatLog", repository.findMessageLog(roomID)); //로그 불러오기
+                model.addAttribute("room", chatRoomDTO);  // 받은아이디와 세션플래너아이디가 맞으면
+                return "/plan/room";
+            } else { //로그가 없을때
+                model.addAttribute("room", chatRoomDTO);  // 받은아이디와 세션플래너아이디가 맞으면
+                return "/plan/room";
+            }
+        } else {
+            return "redirect:/main";                            // 아닐경우 메인으로
+        }
+    }
+} 
+```
+
+</details>
+  
+<details>
+<summary> <b>Repository</b> </summary>
+
+- 모든 채팅방조회, 로그저장, 로그조회, 조건과 일치하는 채팅방 조회 등을 구현한다.
+
+```java
+@Repository
+public class ChatRoomRepository {
+    private Map<String, ChatRoomDTO> chatRoomDTOMap;
+    final
+    SqlSession session;
+
+    public ChatRoomRepository(SqlSession session) {
+        this.session = session;
+    }
+
+    //채팅방 만들기
+    public void createChatRoomDTO(ChatRoomDTO chatRoomDTO) {
+        session.insert("chat.create", chatRoomDTO);
+    }
+
+    // 소유하고있는 모든 채팅방 리스트 가져오기
+    public List<ChatRoomDTO> findAllRooms(String user_id) {
+        return session.selectList("chat.findAllRooms", user_id);
+    }
+
+    // 채팅방ID로 채팅찾기
+    public ChatRoomDTO findRoomById(ChatRoomDTO chatRoomDTO) {
+        return session.selectOne("chat.findRoomById", chatRoomDTO);
+    }
+
+    // 보내는 사람 받는사람 이름으로 채팅방이 이미 존재하는지 확읺하고
+    // 있다면 채팅방ID를 리턴한다
+    public ChatRoomDTO findRoomByName(ChatRoomDTO chatRoomDTO) {
+        return session.selectOne("chat.findRoomByName", chatRoomDTO);
+    }
+
+    //메세지로그 저장
+    public void saveMessageLog(ChatMessageDTO chatMessageDTO) {
+        session.insert("chat.saveMessageLog", chatMessageDTO);
+    }
+    //메세지로그 불러오기
+    public List<ChatMessageDTO> findMessageLog(int msg_idx) {
+        return session.selectList("chat.findMessageLog", msg_idx);
+    }
+    //읽었나 안읽었나 확인
+    public void readNtoY(Map<String, String> map) {
+        session.update("chat.readNtoY", map);
+    }
+    // 채팅방 생성시 안읽은 메세지가 있는방 표시
+    public List<ChatRoomDTO> checkReadOrNot(String sessionId) {
+        ChatRoomDTO chatRoomDTO = new ChatRoomDTO();
+        System.out.println(session.selectList("chat.checkReadorNot", sessionId));
+        chatRoomDTO.setReceive_id(sessionId);
+        return session.selectList("chat.checkReadorNot", chatRoomDTO);
+    }
+}
+```
+
+</details>
+
+
+
+<details>
+<summary> <b>SQL</b> </summary>
+
+- mybatis 활용
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat">
+    <insert id="create" parameterType="com.goott.pj3.common.util.chat.ChatRoomDTO"
+            useGeneratedKeys="true" keyProperty="msg_idx">
+        INSERT INTO msg (send_id, receive_id, msg_img, msg_content)
+        SELECT #{send_id}, #{receive_id}, '', ''
+        FROM DUAL
+        WHERE NOT #{send_id} = #{receive_id}
+          AND NOT EXISTS (SELECT msg_idx
+                          FROM msg
+                          WHERE (send_id = #{send_id} AND receive_id = #{receive_id})
+                             OR (send_id = #{receive_id} AND receive_id = #{send_id}))
+    </insert>
+    <!--방id로 채팅방 찾기-->
+    <select id="findRoomById" resultType="com.goott.pj3.common.util.chat.ChatRoomDTO">
+        SELECT msg_idx, send_id, receive_id, create_date
+        FROM msg
+        WHERE msg_idx = #{msg_idx}
+    </select>
+    <!--해당 유저의 모든 방 찾기-->
+    <select id="findAllRooms" resultType="com.goott.pj3.common.util.chat.ChatRoomDTO">
+        SELECT msg_idx, send_id, receive_id, msg_img, msg_content, create_date
+        FROM msg
+        WHERE send_id = #{user_id}
+           OR receive_id = #{user_id}
+        ORDER BY msg_idx DESC
+    </select>
+    <!--유저이름으로 채팅방 찾기-->
+    <select id="findRoomByName" resultType="com.goott.pj3.common.util.chat.ChatRoomDTO">
+        SELECT msg_idx, send_id, receive_id
+        FROM msg
+        WHERE (send_id = #{send_id} AND receive_id = #{receive_id})
+           OR (send_id = #{receive_id} AND receive_id = #{send_id})
+    </select>
+    <!--메세지 로그 저장 (이미지는 추후)-->
+    <insert id="saveMessageLog" parameterType="com.goott.pj3.common.util.chat.ChatMessageDTO">
+        INSERT INTO msg_log(msg_idx, send_id, receive_id, msg_content, msg_img)
+        VALUES (#{msg_idx}, #{send_id}, #{receive_id}, #{msg_content}, '없음')
+    </insert>
+    <!--메세지 로그 찾아오기-->
+    <select id="findMessageLog" resultType="com.goott.pj3.common.util.chat.ChatMessageDTO">
+        SELECT msg_idx, send_id, receive_id, msg_img, msg_content, create_date, read_yn
+        FROM (SELECT msg_idx, send_id, receive_id, msg_img, msg_content, create_date, read_yn
+              FROM msg_log
+              WHERE msg_idx=#{msg_idx}
+              ORDER BY create_date DESC
+              LIMIT 10) as sub
+        ORDER BY create_date ASC
+    </select>
+    <!--읽었나 확인-->
+    <update id="readNtoY">
+        UPDATE  msg_log
+        SET read_yn = 'y'
+        WHERE msg_idx = #{msg_idx} AND receive_id = #{session_id}
+    </update>
+    <!--채팅방 리스트 생성시 안읽은 메세지가 있는 방을 표시해줌-->
+    <select id="checkReadorNot" resultMap="msgidxResultMap">
+        SELECT msg_idx
+        FROM msg_log
+        WHERE receive_id = #{receive_id}
+          AND read_yn = 'n'
+    </select>
+    <resultMap id="msgidxResultMap" type="com.goott.pj3.common.util.chat.ChatRoomDTO">
+        <collection property="msg_idx" column="msg_idx" javaType="List" ofType="Integer">
+            <result column="msg_idx"/>
+        </collection>
+    </resultMap>
+</mapper>
+
+```
+
+</details>
+	  
+<details>
+<summary> <b>DTO</b> </summary>
+
+- 메세지를 위한 DTO, 채팅방을 위한 DTO 2개를 작성.
 
 </details>
 
 <details>
-<summary> <b>Javascript</b> </summary>
-
-- 사용자가 파일 선택을 진행하면 해당 파일이 이미지인지 검사 후에 AJAX로 Controller에 전달을 진행합니다.
-- ResponseEntity로 반환 받은 이미지 경로를 encoding해서 쿼리스트링으로 display 메소드를 호출, 이미지를 출력합니다.
-- 위와 같은 방식으로 네비바, 댓글에도 이미지를 상시 출력합니다.
-  <details>
-  <summary> <b>네비바 이미지 출력</b> </summary>
-
-  ```javascript
-	// 네비바 이미지 로딩 위한 함수
-	$(function() {
-		$('.img_tag').ready(function() {
-			$.ajax({
-				url : '/user/navbarImg2',
-				dataType : 'text',
-				success : function(result2) {
-					if(result2 == "" || result2 == null){return}
-					let fileCallPath = encodeURI(result2); // 해당 파일의 이름
-					$('.img_tag').attr('src', "/mypage/display?fileName=" + fileCallPath);
-				}
-			});
-		})
-	});
-
-	  ```
-
-	  </details>
-	  <details>
-	  <summary> <b>프로필 이미지 등록/변경</b> </summary>
-
-	  ```javascript
-	//파일 선택 후 이미지인지 점검 -> ajax로 Controller에 전송
-	$(function() {
-		$("input[type='file']").on("change", function(e){
-			// formData 객체 선언 - 이미지 파일을 전송하기 위함
-			let formData = new FormData();
-			// 사용자가 선택한 파일
-			let fileInput = $('input[name="uploadFile"]'); 
-			let fileList = fileInput[0].files; // 첫번째 선택한 파일
-			let fileObj = fileList[0]; // 파일 객체
-
-			// 이미지인지 파일 체크, 용량 체크 
-			if(!fileCheck(fileObj.name, fileObj.size)){
-				return false;
-			}
-
-			// formData 객체에 해당 파일 추가(uploadFile로 이름 설정)
-			formData.append("uploadFile", fileObj); 
-
-			$.ajax({
-				url: '/mypage/upload',
-		    processData : false,
-		    contentType : false,
-		    data : formData, 
-		    type : 'POST',
-		    dataType : 'json', // 제이슨타입으로 formData를 전달
-		    success : function(result) {
-					showUploadImage(result);  //이미지 출력 함수
-				},
-		    error : function(result){
-			alert("이미지 파일이 아닙니다.");
-		    }
-			});
-		});
-	});
-
-	  // 이미지인지 파일 체크, 용량 체크 
-	  function fileCheck(fileName, fileSize){
-	      let regex = new RegExp("(.*?)\.(jpg|png)$"); 
-	      let maxSize = 1048576; //1MB
-
-	      if(fileSize >= maxSize){ // 파일 사이즈 검사
-		  alert("파일 사이즈 초과");
-		  return false;
-	      }
-
-	      if(!regex.test(fileName)){ // 이미지가 아닌 파일 잡는것
-		  alert("해당 종류의 파일은 업로드할 수 없습니다.");
-		  return false;
-	      }
-	      return true;		
-	  }
-
-	  //이미지 등록후 프로필을 출력하기 위한 함수
-	  function showUploadImage(result){
-	      // 전달받은 데이터가 값이 없는 경우
-	      if(result == "" || result == null){return} 
-	      // fileCallPath에 리턴받은 해당 이미지 경로를 encoding
-	      let fileCallPath = encodeURI("C:\\upload\\"+result.uploadPath + result.uuid + 
-	      "_" + result.fileName); // 해당 파일의 이름
-	      // src 경로 값으로 쿼리스트링과 encoding한 이미지 경로를 설정 
-	      // -> display 메소드 호출하면서 파라미터 fileName의 값을 encoding한 
-	      // 이미지 경로를 부여
-	      $('.img_tag').attr('src', "/mypage/display?fileName=" + fileCallPath);
-	  }
-
-	  //이미지 상시 출력을 위한 함수 
-	  $(function() {
-	      $("#img_onload").ready(function(){
-		  let formData = new FormData();
-		  // fileInput : 이미지 태그의 src값 
-		  // - Controller에서 리턴한 이미지의 절대 경로를 담고 있음
-		  let fileInput = $('#img_onload').attr('src');
-		  // formData 객체에 해당 파일 추가(uploadFile로 이름 설정) 
-		  formData.append("uploadFile", fileInput); 
-
-		  $.ajax({
-		      url: '/mypage/onload',
-		  processData : false,
-		  contentType : false,
-		  data : formData, 
-		  type : 'POST',
-		  dataType : 'text', 
-		      // 제이슨타입으로 formData를 전달 - ResponseEntity 타입이 String이기 때문
-		  success : function(result) {
-			  showOnloadImage(result);  //이미지 상시 출력 메서드
-		      },
-		  error : function(result){
-			  alert("이미지 파일이 아닙니다.");
-		  }
-		  });
-	      });
-	  });
-
-	  //이미지 로딩 위한 함수
-	  function showOnloadImage(result){
-	      // 전달받은 데이터가 값이 없는 경우
-	      if(result == "" || result == null){return}
-	      let fileCallPath = encodeURI(result); // 이미지 절대 경로를 encoding
-	      $('#img_onload').attr('src', "/mypage/display?fileName=" + fileCallPath);
-	  }
-
-  ```
-
-  </details>
-   <details>
-  <summary> <b>댓글 이미지 출력</b> </summary>
-
-  ```javascript
-  // 원댓글 이미지 출력
-  $(function() {
-      $('.com_img').ready(function() {
-          let fileInput = document.querySelectorAll('.com_img');
-          for(let i = 0; i < fileInput.length; i++){
-              let formData = new FormData();
-              formData.append("uploadFile", fileInput[i].currentSrc);
-              $.ajax({
-                  url: '/mypage/onload',
-              processData : false,
-              contentType : false,
-                  data : formData,
-              type : 'POST',
-                  dataType : 'text',
-                  success : function(result2) {
-                      if(result2 == "" || result2 == null){return}
-                      let fileCallPath = encodeURI(result2); // 해당 파일의 이름
-                      fileInput[i].src = "/mypage/display?fileName=" + fileCallPath;
-                  }
-              });
-          }
-      })
-  });
-
-  // 대댓글 이미지 출력
-  function imgOnload() {
-      $('.cocom_img').ready(function() {
-          let fileInput = document.querySelectorAll('.cocom_img');
-          for(let i = 0; i < fileInput.length; i++){
-              let formData = new FormData();
-              formData.append("uploadFile", fileInput[i].currentSrc);
-              $.ajax({
-                  url: '/mypage/onload',
-              processData : false,
-              contentType : false,
-                  data : formData,
-              type : 'POST',
-                  dataType : 'text',
-                  success : function(result2) {
-                      if(result2 == "" || result2 == null){return}
-                      let fileCallPath = encodeURI(result2); // 해당 파일의 이름
-                      fileInput[i].src = "/mypage/display?fileName=" + fileCallPath;
-                  }
-              });
-          }
-      });
-  }
-
-  // 대댓글 형성후 - 이미지 로딩
-  (... 생략...)
-  cocomText += "<tr>";
-      if(this.img != null && this.img != '') {
-          cocomText += "<td class='cocom_title text'>"
-          cocomText += "	<div class='user_img_area'>"
-          cocomText += "		<img src='" + this.img + "' class='cocom_img'>"
-          cocomText += "	</div>"
-      }
-      else {
-          cocomText += "<td class='cocom_title text'>"
-          cocomText += "	<div class='user_img_area'>"
-          cocomText += "		<img src='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxmp7sE1ggI4_L7NGZWcQT9EyKaqKLeQ5RBg&usqp=CAU' 
-              				class='img_tag2'>"
-          cocomText += "	</div>"
-      }
-  (... 생략...)
-  cocomText += "</td>"
-  (... 생략...)
-  imgOnload();
-
-  ```
-
-  </details>
+<summary> <b>설정</b> </summary>
   
+- 라이브러리 설치
+
+```xml
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-messaging</artifactId>
+			<version>5.2.18.RELEASE</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.webjars/stomp-websocket -->
+		<dependency>
+			<groupId>org.webjars</groupId>
+			<artifactId>stomp-websocket</artifactId>
+			<version>2.3.4</version>
+		</dependency>
+```
+
 </details>
+  
+
 
 <details>
-<summary> <b>Controller</b> </summary>
+<summary> <b>어려웠던 점</b> </summary>
 
 - 프로필 이미지를 경로, 날짜, uuid를 설정하고, 파일 명에 합쳐 Service에 전달합니다.
 - upload 메소드 : 경로 설정을 끝낸 이미지 파일을 ResponseEntity 객체로 변환하여 리턴합니다.
