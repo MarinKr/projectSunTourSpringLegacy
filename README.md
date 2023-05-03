@@ -28,7 +28,7 @@
 
 ## 3. 내 역할과 업무성과
 - AWS S3 - AWS IAM, S3 bucket 생성 및 업로드 공통 클래스 작성
-- 아임포트 - 결제 API 
+- 아임포트 - 결제 API  
 - 인터셉트 - Auth 체크용 어노테이션 구현
 - 웹소켓 STOMP - 플래너와 유저간 채팅 구현
 - 게시판 CRUD - 플랜 게시판 구현
@@ -209,7 +209,7 @@ public class S3FileUploadService {
 </details>
   
 <details>
-<summary> <b>앞으로 해야될것</b> </summary>
+<summary> <b>앞으로 해야될 것</b> </summary>
 	
 - AWS RDS 테스트중 추가 결제가 되었음. 학습이 더 필요함.
 - 깃허브 액션과 S3 EC2 연계로 CICD구현(진행중)
@@ -330,132 +330,22 @@ public class PaymentController {
 </details>
 
 <details>
-<summary> <b>Javascript</b> </summary>
+<summary> <b>어려웠던 점</b> </summary>
 
-- 사용자가 입력한 정보의 유효성을 확인한 다음 form의 submit을 제어하고, 아이디 값을 다시    반환하거나 비밀번호 변경을 진행합니다. 
+- 아임포트 CDN 버전업 업데이트 내역을 뒤늦게 확인. (더이상 지원하지 않는 파라미터)
+- 초반에 성급하게 진행하여, 구조를 잘못 이해함.
+- 아임포트에서 발행하는 secret id와 key는 클라이언트 결제정보를 결제사에서 가져오기 위해 있음.
+
   <details>
-  <summary> <b>아이디 찾기 구현 코드</b> </summary>
+  <summary> <b>앞으로 해야될 것</b> </summary>
    
-  - 이메일 형식을 먼저 확인 후 이메일 인증을 진행합니다. (AJAX로 이메일로 인증번호 전송)<br>
-  - 인증번호는 빈칸/정보가 일치하지 않을 시에 안내 메시지를 출력합니다.<br>
-  - 인증이 완료된 후 AJAX를 통하여 Controller에 사용자가 입력한 이메일 정보를 보냅니다.<br>
-  - DB에 일치하는 정보가 있으면 리턴 받은 ID값을 alert을 통해 사용자에게 보여줍니다.
-
-  ```javascript
-    var code1 = ""; // 아이디 이메일 전송 인증번호 저장할 공간
-  var code2 = ""; // 비밀번호 이메일 전송 인증번호 저장할 공간
-  var email1= ""; // 아이디 이메일 인증 - 이메일이 들어갈 변수 지정 
-  var email2= ""; // 비밀번호 이메일 인증 - 이메일이 들어갈 변수 지정 
-  var id = ""; // id가 들어갈 변수 지정
-  var inputCode = ""; //사용자가 입력한 인증번호
-
-  /////////////// 아이디찾기 이메일 인증 ///////////
-  $(function(){
-      $('#emailchk1').click(function(e) {
-          // 시스템 자체의 submit을 막음
-          e.preventDefault();
-
-          // 사용자가 입력한 이메일
-          email1 = $("#input_email1").val();
-
-          var inputResult = $('#email_text1'); // 인증 상태 메세지
-
-          if(email1 == null || email1 == ""){ // 이메일 값이 없는 것을 방지
-              inputResult.html('이메일을 입력해주세요');
-              $("#input_email1").focus(); 
-              return;
-          }
-          else if(!email1.match('@')){ // 입력받은 이메일에 @없는 걸 방지
-              inputResult.text("올바른 이메일 형태를 입력해주세요");
-              $("#input_email1").focus();
-              return;
-          }
-          else{ // 위 조건에 걸리지 않으면 상태메세지 없앰
-              inputResult.text("");
-          }
-          inputResult.html('인증번호 전송이 완료되었습니다');
-          // ajax로 통해 컨트롤러(mailCheck메소드)로 email의 정보를 넘김 
-          // -> 넘기는게 성공하면 인증번호 데이터를 code에 담음
-          $.ajax({
-              type : "GET",
-              url : "mailCheck?email=" + email1, // 해당 메소드에 email값을 보냄
-              success:function(data1){
-                  code1 = data1; // 인증 번호가 담기는 구역
-              } 
-          }); // ajax end
-      }); //event function end
-
-      // 인증번호 확인 버튼 클릭시 이벤트
-      $('#author_submit1').click(function(e){
-          e.preventDefault(); // 키에 대한 submit을 막아놓음
-
-          var inputCode = $('#author1').val(); 
-          //사용자가 인증번호를 입력하는 input의 value
-          var inputResult = $('#email_text1'); // 인증 상태 메세지
-
-          if(inputCode === null || inputCode === ""){ // 사용자가 입력하지 않은경우
-              inputResult.html("인증번호를 입력해주세요.");
-              return;
-          }
-          else if(inputCode == code1){ 
-          // 사용자가 입력한 인증번호와 발급한 인증번호가 맞을 경우
-              inputResult.html("인증번호가 일치합니다.");
-
-          }else{ // 사용자가 입력한 인증번호와 발급한 인증번호가 일치하지 않을 경우
-              inputResult.html("인증번호를 다시 확인 해주세요.");
-              return;
-          }
-      }); // event function end
-
-      //////////// 아이디 찾기 //////////
-      $('.login_submit_id').click(function(){
-          inputCode = $('#author1').val();
-          var inputResult = $('#email_text1');
-          email1 = $("#input_email1").val();
-          if(email1 == "" || email1 == null || !email1.match('@')){ 
-          // 이메일 값이 없거나 올바른 이메일 형식이 아닌 경우
-              $('#submit_id_text').html('이메일 인증을 먼저 해주세요');
-              $("#input_email1").focus();
-              return;
-          }
-          else if(inputCode == "" || inputCode == null || inputCode != code1){
-              $('#submit_id_text').html('인증번호를 입력해주세요');
-              $('#author1').focus();
-              return;
-          }
-          else{
-              if(email1 != null){ // 위의 ajax에서 이메일을 제대로 받아온 경우
-                  $.ajax({
-                      url : 'findid', 
-                      dataType : 'text',
-                      data : {"email" : email1},
-                      type : 'post',
-                      success:function(id) {		
-                          if(id == null || id == ""){ // 빽단에서 받아온 id값이 없는 경우 
-                              $('#submit_id_text').html('등록된 정보가 없습니다');
-                              return;
-                          }
-                          else{ // 빽단에서 받아온 id값이 있어 제대로 출력된 경우 
-                              alert('아이디는'+id+'입니다');
-                              $('#submit_id_text').html('');
-                          }
-                      },
-                      error : function() { $('#submit_id_text').html('등록된 정보가 없습니다'); return; }		
-                  }); // ajax end
-              }
-
-              else{	//이메일을 입력하지 않을 경우
-                  $('#submit_id_text').html('이메일 인증을 먼저해주세요'); 
-                  inputResult.html('인증번호를 입력해주세요');
-                  return;
-              }
-          }
-      }); // event function end
-  }); // function end
-
-  ```
+  - 더 다양한 API를 사용해 볼것
+  - 이를 통해 메뉴얼을 이해하고 응용해볼것.
+  - JavaScript만으로는 왜 데이터조작에 더 취약한지 학습해 볼것.
+  - 구현 전 API의 버전과 그에맞는 내용을 먼저 인지할 것.
 
   </details>
+	
   <details>
   <summary> <b>비밀번호 찾기 구현 코드</b> </summary>
     
