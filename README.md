@@ -1017,39 +1017,19 @@ public class ChatRoomRepository {
 - 가장 어려운 점은 STOMP 구현 후에 고려해야 할  조건 이었다.(로그를 불러오거나 저장, 조건에 의해 방 생성제한 혹은 생성, 읽음확인 등등)
 
 </details>
+	
+<details>
+<summary> <b>앞으로 해야될 것</b> </summary>
 
-  <details>
-  <summary> <b>네비바 이미지 출력</b> </summary>
+- 코드를 깔끔하게 정리하는 습관을 들이자.
+- Controller 와 Service에서 해야할 것들을 잘 구분해야 된다.
+- 조건이 어떻게하면 더 간단할지 생각해봐야 한다.
+- 읽음표시 기능이 아직 완벽하지 않으며, 채팅방 나가기를 구현해야한다. 
+- 웹소켓으로 다중채팅을 구현하려고 했을때 알고리즘 학습의 중요성을 알게되었다.
 
-  ```java
-	// 네비바 프로필 이미지 호출
-	@RequestMapping(value={"navbarImg1", "navbarImg2"}, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<String> navbarImg(HttpSession session, UserDto dto, 
-					HttpServletRequest request) {
-		String requestUrl = request.getRequestURL().toString(); 
-		// 매핑값마다 실행되는 코드를 다르게 하기 위해 HttpServletRequest 객체로 매핑 조정
-		if(requestUrl.contains("navbarImg1")) { // 네비바1에서의 프로필 로딩
-			String id =(String) session.getAttribute("user_id").toString();
-			String img = userService.navbarImg(id); 
-			// 아이디 정보를 통해서 해당 사용자의 프로필 경로를 받아옴
-			// 이미지 값을 ResponseEntity로 변환
-			// -> 프로필 이미지 절대 경로와 HTTP 상태 코드를 객체에 넣음
-			ResponseEntity<String> result1 = new ResponseEntity<String>(img, HttpStatus.OK); 
-			return result1;
-		}
-		else { // 네비바2에서의 프로필 로딩
-			String id =(String) session.getAttribute("user_id").toString();
-			String img = userService.navbarImg(id);
-			ResponseEntity<String> result2 = new ResponseEntity<String>(img, HttpStatus.OK);
-			return result2;
-		}
-	}
+</details>
 
-  ```
-
-  </details>
-
-  <details>
+<details>
   <summary> <b>프로필 이미지 등록/변경</b> </summary>
 
    ```java
