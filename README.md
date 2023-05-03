@@ -50,100 +50,96 @@
 
 <details>
 <summary> <b>IAM 권한설정</b> </summary>
-
 - IAM 사용자 생성
 - 권한으로 AmazonS3FullAccess 추가
 ![image](https://user-images.githubusercontent.com/120711406/235908642-a1dbf375-e3ad-4c73-a6bb-b291ad0f3e58.png)
-
 </details>
-  
+	
 <details>
 <summary> <b>버킷 정책 생성</b> </summary>
-
-  
 - 버킷을 사용하기 위해 정책생성
 ![image](https://user-images.githubusercontent.com/120711406/235909022-146e7ec1-4f9d-4f64-a8ec-326a74e954a5.png)
-
-
-```
-<body>
-(... 생략 ...)  
-
-  
-	<section>
-		<div class="section_loginform">
-			<span class="login"><span class="login_text">로그인</span><small>
-			<a href="/user/find">비밀번호를 잊어버리셨나요?</a></small></span>
-			<form method="post" action="signin_check" class="login_form">
-				<div>
-					<div class="input_text">
-						<input type="text" name="id" placeholder="ID" autocomplete="off" 
-						class="input_size">
-						<span id="id" class="formSpans"></span>
-					</div>
-					<div class="input_text">
-						<input type="password" name="password" placeholder="비밀번호" 
-						autocomplete="off" class="input_size">
-						<span id="password" class="formSpans"></span>
-
-					</div>
-					<button class="login_submit">로그인</button>
-					<c:if test="${message == 'error' }">
-            			<div class="error_text">아이디 또는 비밀번호가 일치하지 않습니다.</div>
-         			</c:if>
-         			<c:if test="${message == 'success' }">
-            			<div class="error_text"></div>
-         			</c:if>
-				</div> 
-			</form>
-			
-			<span class="division_line"> <br>다른 방법으로 로그인하기</span>
-      			(... 생략 ...)   
-			<div>
-				<span class="signup_text"> <br>혹시 아직 회원이 아닌가요? </span>
-				<br>
-				<form method="get" action="/user/signup">
-					<button class="signup">회원가입</button>
-				</form>
-			</div>
-		</div>
-	</section>
-</body>
-```
 </details>
+	
 <details>
-<summary> <b>Javascript</b> </summary>
-
-- 사용자가 입력한 정보를 JS로 빈칸으로 submit하는 것을 방지합니다. 조건에 걸리지 않으면 form으로 Controller에 정보를 전달합니다.
+<summary> <b>공통 클래스 구현</b> </summary>
+- 이미지 다중 업로드, 삭제 를 위한 공통 클래스를 구현.
  
-```javascript
-// 로그인을 빈칸으로 제출하는 것을 방지
-$(function(){ 
-    $(".login_submit").click(function(e){
-    	e.preventDefault();
-        var id=$("input[type=text]").val(); // 아이디 입력값
-        var password=$("input[type=password]").val(); // 비밀번호 입력값
-                   
-        if(id== "" || id == null){ //아이디 빈칸 방지 
-            $('#id').html("아이디를 입력해주세요");
-            $("input[type=text]").focus();
-            return;
+```java
+@Service
+public class S3FileUploadService {
+
+    @Autowired
+    private final AmazonS3Client amazonS3Client; //아마존 계정정보 propertie파일 -> common-context에서 주입
+    @Value("${aws.s3.bucket}")
+    private String bucket; //S3버킷정보
+    @Value("${aws.s3.bucket.url}") //지역정보
+    private String defaultUrl;
+
+    public S3FileUploadService(AmazonS3Client amazonS3Client) {
+        this.amazonS3Client = amazonS3Client;
+    }
+
+    //생성자 주입
+    public List<String> upload(List<MultipartFile> uploadFile) throws IOException {
+        List<String> urlList = new ArrayList<>(); //업로드된 url을 받기위한 리스트
+
+        //파일이름 새로만들어서 리스트에 담기
+        List<Map<String, String>> fileList = new ArrayList<>();
+        for (int i = 0; i < uploadFile.size(); i++) {
+            String origName = uploadFile.get(i).getOriginalFilename(); //원 파일이름
+            String ext = origName.substring(origName.lastIndexOf('.')); // 확장자
+            String saveFileName = getUuid() + ext; //uuid로 새이름 만들기
+            Map<String, String> map = new HashMap<>();
+            map.put("saveFile", saveFileName);
+//            System.out.println("s3맵 : " + saveFileName );
+            fileList.add(map);
         }
-        else{
-        	$('#id').html("");
-            if(password == "" || password == null){ //비밀번호 빈칸 방지 
-                $('#password').html("비밀번호를 입력해주세요");
-                $("input[type=password]").focus();
-                return;
-            }
-            else{
-            	$('#password').html("");
-                // signin_check 메소드로의 이동
-            	$('.login_form').submit();
-            }
+
+        for (int i = 0; i < uploadFile.size(); i++) {
+            String url = "";
+            File file = new File(System.getProperty("user.dir") + fileList.get(i).get("saveFile"));
+            //로컬 현재위치에 임시저장 객체 만듬
+            uploadFile.get(i).transferTo(file); //로컬에 파일 임시저장
+            uploadOnS3(fileList.get(i).get("saveFile"), file); //업로드
+            url = defaultUrl + '/' + fileList.get(i).get("saveFile"); //업로드한 파일의 url주소
+            urlList.add(url); //리턴을 위해 담음
+            file.delete(); // 임시파일 삭제
         }
-    });
-});
+        return urlList; //업로드 후 리턴값 (List<String> 타입)
+    }
+
+    // UUID만드는 메소드(중간의-는 지워줌)
+    private static String getUuid() {
+        return UUID.randomUUID().toString().replaceAll("-", "");
+    }
+
+    //S3업로드 메소드
+    private void uploadOnS3(final String findName, final File file) {
+        // AWS S3 전송 객체 생성
+        final TransferManager transferManager = new TransferManager(this.amazonS3Client);
+        // 요청 객체 생성
+        final PutObjectRequest request = new PutObjectRequest(bucket, findName, file);
+        // 업로드 시도
+        final Upload upload = transferManager.upload(request);
+
+        try {
+            upload.waitForCompletion();
+        } catch (AmazonClientException | InterruptedException amazonClientException) {
+            amazonClientException.printStackTrace();
+        }
+    }
+    //S3 객체 삭제 메소드
+    public void deleteFromS3(final String findName) {
+        String realFileName = findName.substring(53);
+        // 삭제할 객체 생성
+        final DeleteObjectRequest deleteRequest = new DeleteObjectRequest(bucket, realFileName);
+        // 삭제
+        this.amazonS3Client.deleteObject(deleteRequest);
+    }
+
+}
+
 ```
 
 </details>
