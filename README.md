@@ -1,10 +1,9 @@
-# projectSunTourSpringLegacy
-# 💡 OTT 플랫폼 서비스(GOOTTFLEX)
+# 💡여행 플랜 서비스 플랫폼(GOOTTFLEX)
 
 
 
 ## 1. 제작 기간 & 참여 인원
-- 2023년 2월 1일 ~ 3월 7일
+- 2023년 4월 ~ 5월
 - 5명
 
 
@@ -28,10 +27,12 @@
 
 
 ## 3. 내 역할과 업무성과
-- 로그인 기능 구현
-- 아이디/비밀번호 찾기 기능 구현 
-- 내보관함 리스트 기능 구현 
-- 사용자 프로필 업로드 기능 구현 
+- AWS S3 - AWS IAM, S3 bucket 생성 및 업로드 공통 클래스 작성
+- 아임포트 - 결제 API 구현
+- 인터셉트 - Auth 체크용 어노테이션 구현
+- 웹소켓 STOMP - 플래너와 유저간 채팅 구현
+- 게시판 CRUD - 플랜 게시판 구현
+- 카트 CRUD - 카트 서비스 구현
 
 ## 4. 구현 기능 코드 
 <details>
@@ -40,7 +41,7 @@
 
 ### 4.1. 전체 흐름
 
-![mvc](https://github.com/kim17841/OTTproject/blob/main/Portfolio/MVC%ED%8C%A8%ED%84%B4.jpg?raw=true)
+![image](https://user-images.githubusercontent.com/120711406/235872521-33d3533d-7baf-4a72-9449-1253a5e2006d.png)
 
 ### 4.2. 로그인 기능 구현
 
