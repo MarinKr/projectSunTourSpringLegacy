@@ -453,10 +453,9 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
 ```
 	
 </details>
-
 	
 <details>
-  <summary> <b>설정</b> </summary>
+<summary> <b>설정</b> </summary>
 
 - Servlet-context 에 해당 인터셉터를 등록해준다.
 	  
@@ -472,12 +471,37 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
 </details>
 
 
+<details>
+<summary> <b>어려웠던 점</b> </summary>
+
+- 간단한 조건 같았지만 생각보다 쓰임을 더 고려해야 했다.
+- Target이 메소드가 아닌 클래스로 작성하려 해보았으나, admin Controller의 경우에도 때에따라 필요로 하는 권한이 달랐다.
+
+</details>
+	
+<details>
+<summary> <b>앞으로 해야될 것</b> </summary>
+
+- 쓰임이 반복되는 기능은 어노테이션 작성 으로 대체 가능한지 고려해볼 것.
+- preHandle 이외에 postHandle, afterCompletion 도 활용가능한 기능이 있는지 고려해 볼 것.
+	
+</details>
 
 	
-### 4.5. 
 
-![mvc](https://github.com/kim17841/OTTproject/blob/main/Portfolio/profile.jpg?raw=true)
-![mvc](https://github.com/kim17841/OTTproject/blob/main/Portfolio/nav.jpg?raw=true)
+
+
+	
+### 4.5. 웹소켓 STOMP를 활용한 채팅 구현
+	
+- UI, UX 구현중(2023.05.03 기준)
+
+![image](https://user-images.githubusercontent.com/120711406/235933242-b170f3ec-0c6a-49a2-aa55-1919415c4853.png)
+
+![image](https://user-images.githubusercontent.com/120711406/235933551-b09481a4-da94-4e4f-99b8-c0da315215d3.png)
+	
+![image](https://user-images.githubusercontent.com/120711406/235934373-a55dfd79-0c46-4100-b829-ae9cfa780935.png)
+
 
 <details>
 <summary> <b>기능 설명</b> </summary>
