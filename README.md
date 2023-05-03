@@ -200,6 +200,7 @@ public class S3FileUploadService {
 </details>
 
 <details>
+	
 <summary> <b>어려웠던 점</b> </summary>
 - AWS를 처음 다루게되어 개념이해에 어려움이 있었음.
 - AWS는 업데이트가 빠르기 때문에 최신 정보를 찾기가 힘들었음. (대부분의 메뉴가 변경되었음)
@@ -208,6 +209,7 @@ public class S3FileUploadService {
 </details>
   
 <details>
+	
 <summary> <b>앞으로 해야될것</b> </summary>
 - AWS RDS 테스트중 추가 결제가 되었음. 학습이 더 필요함.
 - 깃허브 액션과 S3 EC2 연계로 CICD구현(진행중)
