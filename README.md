@@ -229,7 +229,7 @@ public class S3FileUploadService {
 - 검증후 결제정보를 DB에 저장
 	
 ```java
-	@RestController
+@RestController
 public class PaymentController {
     private final IamportClient iamportClient;
     private final PaymentService paymentService;
@@ -265,105 +265,67 @@ public class PaymentController {
 </details>
   
 <details>
-<summary> <b>JSP</b> </summary>
+<summary> <b>JavaScript</b> </summary>
 
   
-- 사용자에게 정보를 입력 받고 form을 통해 Controller 정보를 전달합니다.
+- 아임포트 결제, ajax 콜백함수 구현
 
-```
-<body>
+```javascript
+// 2023.04.23 길영준
+// 카카오페이 결제
+    const price = $('#price').val(); // 가격
+    const name = $('#title').val(); //플랜명
+    const buyer = $('.session').val(); //구매자아이디
+    const planner = $('#planner').val(); // 플래너아이디
+    const plan_idx = $('.plan_idx').val(); //플랜 pk
+    // 아임포트 결제 함수
+    function kakao() {
+        let IMP = window.IMP;
+        IMP.init('imp67107132');
+        IMP.request_pay({
+            pg: 'kakaopay.TC0ONETIME',
+            merchant_uid: 'suntour_' + new Date().getTime(), //상점에서 생성한 고유 주문번호
+            name: name, // 상품명
+            amount: price, // 가격
+            buyer_name: buyer // 구매자
+        }, function (rsp) { // 검증 로직
+            $.ajax({
+                type: 'POST',
+                url: '/verifyIamport/' + rsp.imp_uid
+            }).done(function (result) {
+                if (rsp.paid_amount === result.response.amount) {
+                    let info = {
+                        imp_uid: rsp.imp_uid,
+                        merchant_uid: rsp.merchant_uid,
+                        buyer_id: buyer,
+                        planner_id: planner,
+                        plan_idx: plan_idx
+                    }
+                    $.ajax({//결제 검증 ajax
+                        type: 'POST',
+                        data: JSON.stringify(info),
+                        url: '/payment/confirm',
+                        dataType: "json",
+                        contentType: 'application/json; charset=utf-8',
+                        success: function (result) {
+                            alert(result.msg)
+                            window.location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            alert(result.msg)
+                            console.log(xhr)
+                            console.log(status)
+                            console.log(error)
+                        }
+                    })
+                } else {
+                    alert("결제실패" + "에러 : " + rsp.error_code + "에러내용: " + rsp.error_msg);
+                }
+            })
 
-(... 생략 ...)
-	
-	<section>
-	<!-- 아이디 찾기 -->
-		<div class="section_loginform">
-			<span class="login">아이디 찾기</span>         
-			<form>
-				<div>
-					<!-- 사용자의 이메일을 입력받음 -->
-					<div class="input_text">
-						<input type="email" name="email" placeholder="Email" autocomplete="off" 
-						class="input_size" id="input_email1">
-					</div>
-					<div>
-						<button class="email_checkbtn" id="emailchk1">이메일 인증</button>
-	
-						<!-- 이메일 인증 상태 메세지 -->
-						<span id="email_text1" class="formSpans"></span> 
-						<br>
+        });
+    }
 
-						<input type="text" placeholder="인증번호 입력" autocomplete="off" 
-						class="authorkey" id="author1" maxlength="6">
-
-						<button class="key_submit" id="author_submit1">확인</button>
-					</div>
-					<input type="button" value="아이디 찾기" class="login_submit_id">
-					<br>
-					<!-- 아이디 찾기 상태 메세지  -->
-					<span id="submit_id_text" class="formSpans"></span>                    
-				</div> 
-			</form>
-			<!-- 구분선  -->
-			<span class="division_line"></span> 
-
-			<!-- 비밀번호 찾기 -->
-			<span class="login">비밀번호 찾기</span> 
-			<form>
-				<div>
-					<!-- 아이디 입력 창  -->
-					<div class="input_text">
-						<input type="text" name="id" placeholder="ID" autocomplete="off" 
-						class="input_size" id="id">
-					</div>
-					<br>
-					<!-- 이메일 입력창  -->
-					<div class="input_text">
-						<input type="email" name="email" placeholder="Email" autocomplete="off" 
-						class="input_size" id="input_email2">
-					</div>
-					<div>
-						<button class="email_checkbtn" id="emailchk2">이메일 인증</button>
-
-						<!-- 이메일 인증 상태 확인 메세지 -->
-						<span id="email_text2" class="formSpans"></span> 
-						<br>
-						<input type="text" placeholder="인증번호 입력" autocomplete="off" 
-						class="authorkey" id="author2" maxlength="6">
-
-						<button class="key_submit" id="author_submit2">확인</button>
-					</div>
-					<input type="button" value="비밀번호 찾기" class="login_submit_pw" 
-					id="pw_submit">
-					<br>
-					<!-- 비밀번호 찾기 상태 확인 메세지 -->
-					<span id="submit_pw_text" class="formSpans"></span>       
-				</div> 
-			</form>
-		</div>
-
-	<!-- 비밀번호 변경  -->
-	(... 생략 ...)
-	<!-- 비밀번호 입력 -->
-	<div class="pw_input_text">
-		<input type="password" name="password" placeholder="비밀번호" autocomplete="off" class="input_size" id="pw">
-		<!-- 비밀번호 입력 상태 확인 메세지 - 정규표현식에 위배되면 출력됨 -->
-		<span id="input_regex" class="formSpans"></span>
-        </div>
-      	<!-- 비밀번호 확인 입력 - 비밀번호 입력에서 정규표현식에 맞게 입력되면 입력가능-->
-	<div class="pw_input_text">
-		<input type="password" name="password_confirm" placeholder="비밀번호 확인" autocomplete="off" class="input_size" id="pw_confirm" disabled="disabled">
-        </div>
-        <button id="pw_checkbtn">확인</button>     
-        <span id="check_result" class="formSpans"></span>
-        <input type="button" value="비밀번호 변경" class="login_submit_pw" 
-				id="change_pw" disabled="disabled">
-	(... 생략 ...)
-	</section>
-
-(... 생략 ...)
-
-</body>
 ```
 </details>
 
