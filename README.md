@@ -830,6 +830,165 @@ public class ChatRoomRepository {
 - 메세지를 위한 DTO, 채팅방을 위한 DTO 2개를 작성.
 
 </details>
+	
+<details>
+<summary> <b>JSP</b> </summary>
+	
+- 방 목록
+	
+```jsp
+<c:forEach items="${list}" var="room">
+                <c:if test="${sessionScope.user_id == room.send_id}">
+                    <li><a href="/chat/room/${room.msg_idx}" id="room-name">${room.receive_id} 와 대화하기</a></li>
+                    <div id="msgArea"></div>
+                    <p>채팅 생성날짜 :${room.create_date}</p>
+                    <c:forEach items="${YorN}" var="test">
+                        <c:if test="${test.msg_idx eq room.msg_idx}">
+                            <p>읽지않은 메세지가 있습니다.</p>
+                        </c:if>
+                    </c:forEach>
+                </c:if>
+                <c:if test="${sessionScope.user_id == room.receive_id}">
+                    <li><a href="/chat/room/${room.msg_idx}" id="room-name2">${room.send_id} 와 대화하기</a></li>
+                    <div id="msgArea"></div>
+                    <p>채팅 생성날짜 :${room.create_date}</p>
+                    <c:forEach items="${YorN}" var="test">
+                        <c:if test="${test.msg_idx eq room.msg_idx}">
+                            <p>읽지않은 메세지가 있습니다.</p>
+                        </c:if>
+                    </c:forEach>
+                </c:if>
+            </c:forEach>
+```
+	
+- 채팅방
+
+```jsp
+        <c:forEach var="log" items="${chatLog}">
+            <c:if test="${log.send_id == sessionScope.user_id}">
+                <div class='col-6'>
+                    <div class='alert alert-secondary'>
+                        <b> ${log.send_id} : ${log.msg_content}</b>
+                        <fmt:formatDate pattern="MM-dd HH:mm" value="${log.create_date}"/>
+                        <p>${log.read_yn}</p>
+                    </div>
+                </div>
+            </c:if>
+            <c:if test="${log.send_id != sessionScope.user_id}">
+                <div class='col-6'>
+                    <div class='alert alert-warning'>
+                        <b> ${log.send_id} : ${log.msg_content} </b>
+                        <fmt:formatDate pattern="MM-dd HH:mm" value="${log.create_date}"/>
+                    </div>
+                </div>
+            </c:if>
+        </c:forEach>
+```
+
+</details>
+	
+</detail>
+<summary> <b>JavaScript</b> </summary>
+	
+- 방 목록
+	
+```javascript
+    let alarmLaunched = false;
+    $(document).ready(function () {
+        let sockJs = new SockJS("/stomp/chat");
+        let stomp = Stomp.over(sockJs);
+        stomp.connect({}, function () {
+            console.log("STOMP Connection")
+            stomp.subscribe("/sub/chat/alarm/" + '${sessionScope.user_id}', function (chat) {
+                if (!alarmLaunched) {
+                    let msg = chat.body
+                    console.log(msg)
+                    var str = `<div class='col-6'><div class='alert alert-secondary'><input id="alert"  value="\${chat.body}\"></div></div>`;
+                    $("#msgArea").append(str);
+                    alarmLaunched = true;
+                }
+            });
+        });
+    });
+```
+
+- 채팅방
+
+```javascript
+    $(document).ready(function () {
+
+        let roomId = '${room.msg_idx}';
+        let username = '${sessionScope.user_id}';
+        let receiveName = '';
+        if (username === '${room.send_id}') {
+            receiveName = '${room.receive_id}';
+        } else {
+            receiveName = '${room.send_id}';
+        }
+
+        console.log(roomId + ", " + username);
+
+        let sockJs = new SockJS("/stomp/chat");
+        //1. SockJS를 내부에 들고있는 stomp를 내어줌
+        let stomp = Stomp.over(sockJs);
+
+        //2. connection이 맺어지면 실행
+        stomp.connect({}, function () {
+            console.log("STOMP Connection")
+
+            //4. subscribe(path, callback)으로 메세지를 받을 수 있음
+            stomp.subscribe("/sub/chat/room/" + roomId, function (chat) {
+                var content = JSON.parse(chat.body);
+
+                var writer = content.send_id;
+                var str = '';
+
+                    let date = new Date().toLocaleString()
+                if (writer === username) {
+                    str = "<div class='col-6'>";
+                    str += "<div class='alert alert-secondary'>";
+                    str += "<b>" + writer + " : " + content.msg_content +"</b>";
+                    str += "<p>" + date + "</p>"
+                    str += "</div></div>";
+                    $("#msgArea").append(str);
+                } else {
+                    str = "<div class='col-6'>";
+                    str += "<div class='alert alert-warning'>";
+                    str += "<b>" + writer + " : " + content.msg_content +  "</b>";
+                    str += "<p>" + date + "</p>";
+                    str += "</div></div>";
+                    $("#msgArea").append(str);
+                }
+
+                // $("#msgArea").append(str);
+            });
+
+            //3. send(path, header, message)로 메세지를 보낼 수 있음
+            stomp.send('/pub/chat/enter', {}, JSON.stringify({msg_idx: roomId, send_id: username}))
+        });
+
+        $("#button-send").on("click", function (e) {
+            var msg = document.getElementById("msg");
+
+            console.log(username + ":" + msg.value);
+            stomp.send('/pub/chat/message', {}, JSON.stringify({
+                msg_idx: roomId,
+                msg_content: msg.value,
+                send_id: username,
+                receive_id: receiveName
+            }));
+            msg.value = '';
+        });
+    });
+```
+	
+</details>
+	
+<details>
+<summary> <b>설정</b> </summary>
+	
+
+</details>
 
 <details>
 <summary> <b>설정</b> </summary>
@@ -857,11 +1016,12 @@ public class ChatRoomRepository {
 <details>
 <summary> <b>어려웠던 점</b> </summary>
 
-- 프로필 이미지를 경로, 날짜, uuid를 설정하고, 파일 명에 합쳐 Service에 전달합니다.
-- upload 메소드 : 경로 설정을 끝낸 이미지 파일을 ResponseEntity 객체로 변환하여 리턴합니다.
-- display 메소드 : 경로가 부여된 이미지 파일을  깊은 복사를 한 후 헤더 설정과 HTTP 상태 코드를  ResponseEntity 객체에 담아 리턴하여 이미지를 view에 출력합니다.
-- onload 메소드 : 절대 경로가 담긴 이미지 파일을 ResponseEntity 객체에 HTTP 상태 코드를 같이 담아서 리턴합니다.
-- 네비바 이미지 출력은 onload 메소드처럼 리턴한 후 display메소드를 호출해 이미지를 출력한다.
+- 간단한 1:1 대화는 기본 websocket을 활용하였다.
+- 여러개의 채팅방이 필요 했으므로, 코드가 복잡해지기 시작했다. (자료구조가 복잡해졌다.)
+- 고로, STOMP를 이용해 처음부터 다시 작성해야 했다. (웹소켓을 어느정도 이해한 후라 이해하기 수월했다.)
+- 가장 어려운 점은 STOMP 구현 후에 고려해야 할  조건 이었다.(로그를 불러오거나 저장, 조건에 의해 방 생성제한 혹은 생성, 읽음확인 등등)
+
+
 
   <details>
   <summary> <b>네비바 이미지 출력</b> </summary>
