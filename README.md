@@ -1032,14 +1032,11 @@ public class ChatRoomRepository {
 </details>
 
 <details>
-  <summary> <b>프로필 이미지 등록/변경</b> </summary>
-
- 
-  </details>
-
+<summary> <b>프로필 이미지 등록/변경</b> </summary>
 
 </details>
-	  
+
+
 <details>
 <summary> <b>DTO</b> </summary>
 
