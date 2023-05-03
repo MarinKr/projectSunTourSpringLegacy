@@ -228,7 +228,7 @@ public class S3FileUploadService {
 - 실제 결제한 가격이 고지된 가격과 동일한지 검증
 - 검증후 결제정보를 DB에 저장
 	
----java
+```java
 	@RestController
 public class PaymentController {
     private final IamportClient iamportClient;
@@ -260,7 +260,8 @@ public class PaymentController {
         return map;
     }
 }
----
+```
+	
 </details>
   
 <details>
