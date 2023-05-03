@@ -64,7 +64,6 @@
 <details>
 <summary> <b>공통 클래스 구현</b> </summary>
 - 이미지 다중 업로드, 삭제 를 위한 공통 클래스를 구현.
- 
 ```java
 @Service
 public class S3FileUploadService {
@@ -141,191 +140,56 @@ public class S3FileUploadService {
 }
 
 ```
-
 </details>
 
-  
 <details>
 <summary> <b>Controller</b> </summary>
 
-- userDto에는 사용자가 입력한 정보가 담기며, str에는 해당 정보를 XML로 가져가 DB데이터와비교 후 정보가 있으면 해당 데이터를 불러옵니다. 정보가 없으면 null값을 가집니다.
-
-- 정보가 일치할 경우 메인 페이지로 주소를 이동시키고, 세션 유지 시간을 부여 합니다.
+- Plan 게시판 Controller 업로드
 
 ```java 
-
-// 로그인을 빈칸으로 제출하는 것을 방지
-	@RequestMapping("signin_check")
-	public ModelAndView signin_check(UserDto userDto, HttpSession session, ModelAndView mv) {
-		String str = userService.login(userDto);   //str : 유저닉네임(email, pw 일치 시 존재)
-		if(str != null) {                          //로그인 성공(세션에 로그인 정보 추가)
-			session.setAttribute("user_id", userDto.getId());
-			session.setAttribute("nickname", str);
-			session.setMaxInactiveInterval(60*30); //세션 유지기간 : 30분
-			mv.setViewName("redirect:/video/list"); 
-		}else {                                    //로그인 실패
-			mv.setViewName("user/signin");
-			mv.addObject("message", "error");
-		}
-		return mv;
-	}
-  
-
+  @PostMapping("create")
+    public String planPut(PlanDTO planDTO, ImgDTO imgDTO, HttpSession httpSession,
+                          @RequestParam("files[]") List<MultipartFile> multipartFile) throws IOException {
+        String user = (String) httpSession.getAttribute("user_id");
+        planDTO.setUser_id(user);
+        int plan_idx = planService.planCreate(planDTO); // 게시글 생성
+        if(plan_idx!=0){ // 이미지 파일 생성
+            if(multipartFile !=null || !multipartFile.isEmpty()){ // 이미지 파일 있으면
+                List<String> imgUrlList = s3FileUploadService.upload(multipartFile); // 서버에 이미지 파일 저장 후 URL값 List에 담기
+                planDTO.setPlan_idx(plan_idx); // 게시글 인덱스 set
+                planDTO.setP_img(imgUrlList); // 이미지 url set
+                boolean success = this.planService.planImgCreate(planDTO); // 이미지 저장 성공
+                if(success){
+                    return "redirect:/plan/list";
+                }
+            }
+        }
+        return "/plan/plan_create";
+    }
 ```
 </details>
 
 <details>
-<summary> <b>DTO</b> </summary>
+<summary> <b>설정</b> </summary>
 
-- 테이블에 들어 있는 정보를 미리 변수로 생성하고 getter/setter를 설정한 파일입니다.
+- 라이브러리 설치
+- Key 노출을 피하기 위해 properties 파일 등록 후 빈 주입
  
-```java 
-
-package com.test.test1.user.dto;
-
-import java.util.Date;
-
-public class UserDto {
-	private int user_id, paid_m; //결제 누적 수 paid_m 추가 
-	private String id, email, password, nickname, phone_num, subscribe_yn, delete_yn, img; // 유저 프로필 가져오기 위해 img 추가 
-	private String create_type; //apiLogin때문에 추가
-	private String chatId; // chat기능
-	private Date create_date, expiration_date, delete_date; //관리자 페이지 추가 
-	
-	public Date getCreate_date() {
-		return create_date;
-	}
-
-	public void setCreate_date(Date create_date) {
-		this.create_date = create_date;
-	}
-
-	public Date getExpiration_date() {
-		return expiration_date;
-	}
-
-	public void setExpiration_date(Date expiration_date) {
-		this.expiration_date = expiration_date;
-	}
-
-	public Date getDelete_date() {
-		return delete_date;
-	}
-
-	public void setDelete_date(Date delete_date) {
-		this.delete_date = delete_date;
-	}
-
-	public String getCreate_type() {
-		return create_type;
-	}
-
-	public void setCreate_type(String create_type) {
-		this.create_type = create_type;
-	}
-
-	public String getId() {
-		return id;
-	}
-
-	public void setId(String id) {
-		this.id = id;
-	}
-	
-	public int getUser_id() {
-		return user_id;
-	}
-	public void setUser_id(int user_id) {
-		this.user_id = user_id;
-	}
-	public String getEmail() {
-		return email;
-	}
-
-	public void setEmail(String email) {
-		this.email = email;
-	}
-
-	public String getPassword() {
-		return password;
-	}
-
-	public void setPassword(String password) {
-		this.password = password;
-	}
-
-	public String getNickname() {
-		return nickname;
-	}
-
-	public void setNickname(String nickname) {
-		this.nickname = nickname;
-	}
-
-	public String getPhone_num() {
-		return phone_num;
-	}
-
-	public void setPhone_num(String phone_num) {
-		this.phone_num = phone_num;
-	}
-
-	public String getSubscribe_yn() {
-		return subscribe_yn;
-	}
-
-	public void setSubscribe_yn(String subscribe_yn) {
-		this.subscribe_yn = subscribe_yn;
-	}
-
-	public String getDelete_yn() {
-		return delete_yn;
-	}
-
-	public void setDelete_yn(String delete_yn) {
-		this.delete_yn = delete_yn;
-	}
-
-	public String getChatId() {
-		return chatId;
-	}
-
-	public void setChatId(String chatId) {
-		this.chatId = chatId;
-	}
-
-	public int getPaid_m() {
-		return paid_m;
-	}
-
-	public void setPaid_m(int paid_m) {
-		this.paid_m = paid_m;
-	}
-	
-	public String getImg() {
-		return img;
-	}
-
-	public void setImg(String img) {
-		this.img = img;
-	}
-
-	@Override
-	public String toString() {
-		return "UserDto : [id=" + id 
-			+ ", email=" + email 
-			+ ", passwd="+ password 
-			+ ", nickname=" + nickname 
-			+ ", phone_num=" + phone_num 
-			+ ", create_type=" + create_type 
-			+ ", paid_m=" + paid_m 
-			+ ", img=" + img 
-			+ "]";
-	}
-
-}
-  
-
+```xml
+	   <constructor-arg>
+            <bean class="com.amazonaws.auth.BasicAWSCredentials">
+                <constructor-arg value="${aws.accessKey}"/>
+                <constructor-arg value="${aws.secretKey}"/>
+            </bean>
+        </constructor-arg>
+    </bean>
+    <bean id="awsProperties" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+        <property name="location" value="classpath:common.properties"/>
+    </bean>
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="properties" ref="awsProperties"/>
+    </bean>
 ```
 </details>
 
