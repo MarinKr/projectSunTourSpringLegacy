@@ -887,7 +887,7 @@ public class ChatRoomRepository {
 
 </details>
 	
-</detail>
+<details>
 <summary> <b>JavaScript</b> </summary>
 	
 - 방 목록
