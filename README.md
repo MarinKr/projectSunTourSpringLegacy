@@ -1030,6 +1030,8 @@ public class ChatRoomRepository {
 - 웹소켓으로 다중채팅을 구현하려고 했을때 알고리즘 학습의 중요성을 알게되었다.
 
 </details>
+	
+###4.6. 게시판 CRUD
 
 <details>
 <summary> <b>프로필 이미지 등록/변경</b> </summary>
