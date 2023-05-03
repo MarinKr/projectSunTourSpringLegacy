@@ -47,21 +47,23 @@
 
 ![image](https://user-images.githubusercontent.com/120711406/235873702-5127c63d-19e5-406b-8919-01dd323d2255.png)
 
+
 <details>
-<summary> <b>기능 설명</b> </summary>
+<summary> <b>IAM 권한설정</b> </summary>
 
-- 사용자가 정보를 입력하고 로그인 버튼을 누르면 DB의 정보와 비교 후 로그인 여부를 확인함.
+- IAM 사용자 생성
+- 권한으로 AmazonS3FullAccess 추가
+![image](https://user-images.githubusercontent.com/120711406/235908642-a1dbf375-e3ad-4c73-a6bb-b291ad0f3e58.png)
 
-- 사용자가 입력한 정보와 가져온 정보와 일치하지 않으면 안내 메시지를 출력.
-
-- 사용자가 입력한 정보와 가져온 정보가 일치하면 세션을 부여하고 메인 페이지로 주소 이동.
 </details>
   
 <details>
-<summary> <b>JSP</b> </summary>
+<summary> <b>버킷 정책 생성</b> </summary>
 
   
-- 사용자에게 정보를 입력 받고 form태그에 담습니다.
+- 버킷을 사용하기 위해 정책생성
+![image](https://user-images.githubusercontent.com/120711406/235909022-146e7ec1-4f9d-4f64-a8ec-326a74e954a5.png)
+
 
 ```
 <body>
