@@ -180,7 +180,7 @@ public class S3FileUploadService {
 <summary> <b>설정</b> </summary>
 
 - 라이브러리 설치
-- Key 노출을 피하기 위해 properties 파일 등록 후 빈 주입
+- Key 노출을 피하기 위해 properties 파일 등록 후 클래스 빈설정 생성자 값으로 설정
  
 ```xml
 	   <constructor-arg>
@@ -200,45 +200,19 @@ public class S3FileUploadService {
 </details>
 
 <details>
-<summary> <b>Service / ServiceImpl</b> </summary>
-  
+<summary> <b>어려웠던 점</b> </summary>
+- AWS를 처음 다루게되어 개념이해에 어려움이 있었음.
+- AWS는 업데이트가 빠르기 때문에 최신 정보를 찾기가 힘들었음. (대부분의 메뉴가 변경되었음)
+- Spring Legacy 프로젝트는 Spring boot 에 비해 properties나 yalm파일을 활용하기 복잡했음.
 
-- 비교할 데이터를 Dao까지 전송합니다
-
-
-```java 
-// Service 
-String login(UserDto userDto);
-
-// ServiceImpl
-@Override
-public String login(UserDto userDto) {
-	return userDao.login(userDto);
-}
-  
-```
 </details>
   
 <details>
-<summary> <b>DAO</b> </summary>
-  
-
-- pw에 해당 아이디 일치하는 암호화된 패스워드를 불러옵니다
-- 사용자가 입력한 패스워드와 pw를 비교 후 nickname값을 세션에 저장시킵니다. 일치하지 않으면 null값을 리턴 합니다.
-  
-
-
-```java 
-// Service 
-String login(UserDto userDto);
-
-// ServiceImpl
-@Override
-public String login(UserDto userDto) {
-	return userDao.login(userDto);
-}
-  
-```
+<summary> <b>앞으로 해야될것</b> </summary>
+- AWS RDS 테스트중 추가 결제가 되었음. 학습이 더 필요함.
+- 깃허브 액션과 S3 EC2 연계로 CICD구현(진행중)
+- EC2 학습 진행중 리눅스 학습의 필요성을 느낌.
+	
 </details>
   
 <details>
