@@ -28,7 +28,7 @@
 
 ## 3. 내 역할과 업무성과
 - AWS S3 - AWS IAM, S3 bucket 생성 및 업로드 공통 클래스 작성
-- 아임포트 - 결제 API 구현
+- 아임포트 - 결제 API 
 - 인터셉트 - Auth 체크용 어노테이션 구현
 - 웹소켓 STOMP - 플래너와 유저간 채팅 구현
 - 게시판 CRUD - 플랜 게시판 구현
@@ -216,54 +216,51 @@ public class S3FileUploadService {
 - EC2 학습 진행중 리눅스 학습의 필요성을 느낌.
 	
 </details>
-  
+
+
+### 4.3. 아임포트 결제 API 
+
+![image](https://user-images.githubusercontent.com/120711406/235916623-f8144c4f-73a0-4765-86eb-a0d9c3f4c2b4.png)
+	
 <details>
-<summary> <b>XML</b> </summary>
-  
+<summary> <b>공통 클래스 구현</b> </summary>
 
-- pwGet : 사용자의 정보를 DB에 조회하여 암호화된 패스워드를 불러오는 역할을 합니다.
-- login : 사용자의 닉네임을 불러오는 역할을 합니다.
-
-
-```xml 
-<!-- 유저가 입력한 아이디를 기반으로 암호화된 패스워드를 불러옵니다. -->
-<select id="pwGet" resultType="String">
-		select PASSWORD
-		  from USER
-		 where ID=#{id}
-</select>
-
-/////////////////////////////////////////
-
-<!-- 위에서 암호화된 패스워드와 사용자가 입력한 패스워드를 비교 후 
-사용자의 nickname 값을 호출합니다 -->
-<select id="login" resultType="String">
-		select NICKNAME
-		  from USER
-		 where ID=#{id}
-</select>
-```
-</details>
-
-### 4.3. 아이디/비밀번호 찾기 기능 구현
-
-![mvc](https://github.com/kim17841/OTTproject/blob/main/Portfolio/findid%26pw.jpg?raw=true)
-
-<details>
-<summary> <b>기능 설명</b> </summary>
-
-  - 사용자가 이메일 인증을 거친 후 아이디 / 비밀번호 찾기를 진행하면 DB의 정보 확인 후 계정 정보를 제공 또는 비밀번호 강제 변경을 진행. 
+- 실제 결제한 가격이 고지된 가격과 동일한지 검증
+- 검증후 결제정보를 DB에 저장
 	
-  - 사용자가 입력한 이메일로 인증하면 이메일을 DB에 조회해 일치하는 정보가 있으면 해당 아이디를 제공.
-	
-  - 일치하는 정보가 없으면 사용자에게 안내 메시지를 출력
-	
-  - 비밀번호 찾기는 사용자에게 정보를 입력 받고 인증을 거친 후 비밀번호 찾기를 진행하면 DB에서 정보 조회 후 일치하는 정보가 있으면 
-      비밀번호 변경 진행, 일치하지 않으면 안내 메시지를 출력. 
-	
-  - 비밀번호 변경은 정규표현식에 위배되지 않고 비밀번호와 비밀번호 확인이 동일할 경우에 바뀐 데이터를 DB로 전송하여 정보를 업데이트. 
-	
-  - 사용자가 입력한 정보와 가져온 정보가 일치하면 세션을 부여하고 메인 페이지로 주소 이동.
+---java
+	@RestController
+public class PaymentController {
+    private final IamportClient iamportClient;
+    private final PaymentService paymentService;
+
+    public PaymentController(IamportClient iamportClient, PaymentService paymentService) {
+        this.iamportClient = iamportClient;
+        this.paymentService = paymentService;
+    }
+
+    // 결제 서버검증(실제 결제한 가격이 고지된 가격과 동일한지 검증)
+    @PostMapping("/verifyIamport/{imp_uid}")
+    public IamportResponse<Payment> paymentByUid(@PathVariable(value = "imp_uid") String imp_uid) throws IamportResponseException, IOException {
+        return iamportClient.paymentByImpUid(imp_uid);
+    }
+
+    // 결제정보 DB입력
+    @PostMapping(value = "/payment/confirm", consumes = "application/json")
+    public Map<String, Object> paymentConfirm(@RequestBody PayDTO payDTO) {
+        System.out.println(payDTO.toString());
+        boolean checkPayment = paymentService.pay(payDTO);
+        Map<String, Object> map = new HashMap<String, Object>();
+        if (checkPayment) {
+            paymentService.saleCount(payDTO);
+            map.put("msg", "결제성공");
+        } else {
+            map.put("msg", "결제실패");
+        }
+        return map;
+    }
+}
+---
 </details>
   
 <details>
