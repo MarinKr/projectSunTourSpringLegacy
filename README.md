@@ -539,6 +539,8 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 }
 ```
+	
+</details>
 
 <details>
 <summary> <b>Chat Controller</b> </summary>
