@@ -1034,107 +1034,7 @@ public class ChatRoomRepository {
 <details>
   <summary> <b>프로필 이미지 등록/변경</b> </summary>
 
-   ```java
-
-	  // 프로필 등록
-	  @RequestMapping(value="upload", produces = MediaType.APPLICATION_JSON_VALUE)
-	  public ResponseEntity<ImgDto> test(MultipartFile uploadFile, ImgDto dto, HttpSession session, ModelAndView mv) { 
-	      // 세션에 저장된 사용자의 아이디 변수 id에 저장
-	      String id = (String) session.getAttribute("user_id"); 
-
-	      // 이미지 파일 체크
-	      File checkfile = new File(uploadFile.getOriginalFilename()); // 파일명을 불러옴
-	      String type = null;
-	      try {
-		  type = Files.probeContentType(checkfile.toPath()); 
-		  // 해당 파일의 확장자를 불러옴, 확장자가 없으면 type은 null값을 반환
-	      } catch (IOException e) {
-		  e.printStackTrace();
-	      }
-	      // Date 객체로 날짜 경로 만들기 
-	      // - 하나의 파일에 파일이 많아지면 데이터 관리에 부담이 생김		
-	      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-"); 
-	      // 뒤에 '-'을 더 붙인 이유 : 날짜와 파일명을 구분하기 위함
-	      Date date = new Date();
-	      String str = sdf.format(date); // yyyy-MM-dd 형식으로 날짜가 들어감
-	      // '-'를 separator(파일 구분자)로 나눠 놓음 
-	      // -> 2023 - 02 - 24 형식으로 폴더를 만들기 위함
-	      String datePath = str.replace("-", File.separator);  
-
-	      String uploadFolder = "C:\\upload\\"; // 처음 경로 설정
-	      File uploadPath = new File(uploadFolder, datePath); 
-	      // 파일 생성 클래스 -> 파일 객체 생성
-
-	      if(uploadPath.exists() == false) { // 해당 경로에 파일이 없으면 파일 생성
-		      uploadPath.mkdirs();
-	      }
-
-	      // 파일 이름
-	      String uploadFileName = uploadFile.getOriginalFilename();
-	      dto.setFileName(uploadFileName);
-	      dto.setUploadPath(datePath);
-
-	      // uuid적용한 파일 이름
-	      String uuid = UUID.randomUUID().toString(); 
-	      // uuid 생성, 파일을 구분하는 키값을 생성하기 위함
-	      uploadFileName = uuid + "_" + uploadFileName;
-	      dto.setUuid(uuid);
-
-	      String saveFilestr = uploadPath + uploadFileName;
-	      File saveFile = new File(uploadPath, uploadFileName); 
-
-	      try {
-		  uploadFile.transferTo(saveFile); // saveFile을 저장
-		  dto.setSaveFileStr(saveFilestr);
-		  dto.setId(id);
-		  userService.img_update(dto); 
-		  // 해당 사용자의 아이디에 프로필 이미지 경로를 등록하기 위함
-	      } catch (IOException e) {
-		  e.printStackTrace();
-	      }
-
-	      // ResponseEntity 객체로 HTTP 상태 코드와 이미지 경로를 저장
-	      ResponseEntity<ImgDto> result = new ResponseEntity<ImgDto>(dto, 
-	      HttpStatus.OK); 
-
-	      return result;		
-	  }
-
-	  // 이미지 출력 메소드
-	  @RequestMapping(value = "display")
-	  public ResponseEntity<byte[]> display(String fileName) 
-			  throws FileNotFoundException { // 이미지 파일을 바이트 배열로 받아옴
-
-	      File file = new File(fileName);
-	      if (!file.exists() || !file.canRead()) { // 파일이 없는 경우
-		  throw new FileNotFoundException("The file '" + fileName + "' 을 찾을수 없습니다.");
-	      }
-	      ResponseEntity<byte[]> result = null; // ResponseEntity 객체 초기화
-
-	      try {
-		  HttpHeaders header = new HttpHeaders(); // HttpHeaders 객체 생성
-		  header.add("Content-type", Files.probeContentType(file.toPath())); 
-		  // 헤더 객체에 Content-type을 파일 확장자로 설정 
-		  // ResponseEntity 객체에 이미지 바이트 배열화된 파일 복사한 것과  
-		  // HttpHeaders 객체, HTTP 상태 코드를 담음
-		  result = new ResponseEntity<>(FileCopyUtils.copyToByteArray(file), header, 
-		  HttpStatus.OK);
-	      } catch (IOException e) {
-		  e.printStackTrace();
-	      }
-	      return result;
-	  }
-
-	  // 프로필 상시 
-	  @RequestMapping(value="onload", produces = MediaType.APPLICATION_JSON_VALUE)
-	  public ResponseEntity<String> onload(String uploadFile) { 
-	      // 절대 경로로 된 이미지를 HTTP 상태 코드와 함께  ResponseEntity 객체에 담음
-	      ResponseEntity<String> result = new ResponseEntity<String>(uploadFile, 
-	      HttpStatus.OK);
-	      return result;		
-	  }
-   ```
-
+ 
   </details>
 
 
@@ -1143,215 +1043,37 @@ public class ChatRoomRepository {
 <details>
 <summary> <b>DTO</b> </summary>
 
-- 테이블에 들어 있는 정보를 미리 변수로 생성하고 getter/setter를 설정한 파일입니다.
- 
-```java 
 
-package com.test.test1.mypage.dto;
-
-public class ImgDto {
-
-	/* 경로 */
-	private String uploadPath;
-	
-	/* uuid */
-	private String uuid;
-	
-	/* 파일 이름 */
-	private String fileName;
-	
-	private String saveFilestr;
-	
-	private String id;
-	
-
-	public String getUploadPath() {
-		return uploadPath;
-	}
-
-	public void setUploadPath(String uploadPath) {
-		this.uploadPath = uploadPath;
-	}
-
-	public String getUuid() {
-		return uuid;
-	}
-
-	public void setUuid(String uuid) {
-		this.uuid = uuid;
-	}
-
-	public String getFileName() {
-		return fileName;
-	}
-
-	public void setFileName(String fileName) {
-		this.fileName = fileName;
-	}
-
-	public String getSaveFile() {
-		return saveFilestr;
-	}
-
-	public void setSaveFileStr(String saveFilestr) {
-		this.saveFilestr = saveFilestr;
-	}
-
-	public String getId() {
-		return id;
-	}
-
-	public void setId(String id) {
-		this.id = id;
-	}
-
-	@Override
-	public String toString() {
-		return "ImagDto [uploadPath=" + uploadPath 
-			+ ", uuid=" + uuid 
-			+ ", fileName=" + fileName 
-			+ ", saveFilestr=" + saveFilestr 
-			+ ", id=" + id 
-			+"]";
-	}
-}
-  
-
-```
 </details>
 
 <details>
 <summary> <b>Service / ServiceImpl</b> </summary>
   
 
-- Controller로 받은 데이터를 DAO로 전달합니다.
-
-
-```java 
-// 네비바 이미지 출력 기능 Service / ServiceImpl
-// Service
-public interface UserService {
-	String navbarImg(String id);
-
-}
-
-// ServiceImpl
-@Service
-public class UserServiceImpl implements UserService{
-	
-	@Inject
-	UserDao userDao;
-
-	@Override
-	public String navbarImg(String id) {
-		return userDao.navbarImg(id);
-	}
-}
-
-```
-  
-```java 
-// 프로필 이미지 등록/변경 기능 Service / ServiceImpl
-// Service
-public interface UserService {
-	void img_update(ImgDto dto);
-
-}
-
-// ServiceImpl
-@Service
-public class UserServiceImpl implements UserService{
-	
-	@Inject
-	UserDao userDao;
-
-	@Override
-	public void img_update(ImgDto dto) {
-		userDao.img_update(dto);
-	}
-}
-
-```
 </details>
 	  
 <details>
 <summary> <b>DAO</b> </summary>
   
 
-- Service에서 전달 받은 데이터를 XML로 전달합니다.
-  
-
-
-```java 
-// 네비바 이미지 출력 기능 구현 DAO
-@Repository
-public class UserDao {
-	
-	@Inject
-	SqlSessionTemplate sqlSessionTemplate;
-	
-	public String navbarImg(String id) {
-		return sqlSessionTemplate.selectOne("user.navbarImg" , id);
-	}
-}
-  
-```
-  
-```java 
-// 프로필 이미지 등록/변경 기능 구현 DAO
-@Repository
-public class UserDao {
-	
-	@Inject
-	SqlSessionTemplate sqlSessionTemplate;
-	
-	public void img_update(ImgDto dto) {
-		sqlSessionTemplate.selectOne("user.img_update" , dto);
-	}
-}
-  
-```
 </details>
   
 <details>
 <summary> <b>XML</b> </summary>
+
+</details>
+
+
+<details>
+<summary> <b>네비바 이미지 출력</b> </summary>
+
   
+</details>
 
-- DAO에서 전달 받은 데이터로 쿼리문을 통해 프로필 이미지 경로를 등록하거나 리턴합니다.
-
-  <details>
-    <summary> <b>네비바 이미지 출력</b> </summary>
-
-    - 해당 사용자의 프로필 이미지 경로를 아이디 정보를 통해 불러옵니다.
- 
-    ```xml 
-    <!-- 네비바 이미지 출력 기능 xml -->
-    <select id="navbarImg" resultType="String">
-            <![CDATA[
-            select IMG
-              from USER
-             where ID=#{user_id}
-            ]]>
-    </select>
-    ```
- 
-  </details>
-    <details>
-    <summary> <b>프로필 이미지 등록/변경</b> </summary>
-
-    - 이미지 경로를 해당 사용자의 정보에 저장합니다.<br>
-    - 변경을 할 때에도 위와 같은 방법으로 저장이 이루어집니다. 
- 
-    ```xml 
-    <!-- 프로필 이미지 등록/변경 기능 xml -->
-    <update id="img_update">
-      update USER
-             set IMG = #{saveFilestr}
-         where ID = #{id}
-    </update>
-    ```
- 
-  </details>
+<details>
+<summary> <b>프로필 이미지 등록/변경</b> </summary>
 
 </details>
-</details>
+
+
+
