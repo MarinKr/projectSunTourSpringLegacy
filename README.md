@@ -350,7 +350,9 @@ public class PaymentController {
 - 아임포트 CDN 버전업 업데이트 내역을 뒤늦게 확인. (더이상 지원하지 않는 파라미터)
 - 초반에 성급하게 진행하여, 구조를 잘못 이해함.
 - 아임포트에서 발행하는 secret id와 key는 클라이언트 결제정보를 결제사에서 가져오기 위해 있음.
-
+	
+</details>
+	
 <details>
 <summary> <b>앞으로 해야될 것</b> </summary>
    
