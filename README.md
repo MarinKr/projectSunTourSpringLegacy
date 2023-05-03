@@ -387,7 +387,7 @@ public class PaymentController {
 - Target : 메소드에 어노테이션을 적용시킴
 	
 ```java
-	@Retention(RUNTIME)
+@Retention(RUNTIME)
 @Target(METHOD)
 public @interface Auth {
     public enum Role {ADMIN, USER, PLANNER}
