@@ -43,10 +43,14 @@
 
 ![image](https://user-images.githubusercontent.com/120711406/235872521-33d3533d-7baf-4a72-9449-1253a5e2006d.png)
 
+	
+---
+	
+	
+	
 ### 4.2. AWS S3 - AWS IAM, S3 bucket 생성 및 업로드 공통 클래스 작성
 
 ![image](https://user-images.githubusercontent.com/120711406/235873702-5127c63d-19e5-406b-8919-01dd323d2255.png)
-
 
 <details>
 <summary> <b>IAM 권한설정</b> </summary>
@@ -220,7 +224,7 @@ public class S3FileUploadService {
 </details>
 
 
-	
+---	
 	
 	
 	
@@ -370,7 +374,7 @@ public class PaymentController {
 </details>
 	
 
-	
+---	
 	
 	
 	
@@ -1039,7 +1043,7 @@ public class ChatRoomRepository {
 </details>
 
 	
-	
+---	
 	
 	
 	
