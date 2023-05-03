@@ -984,11 +984,6 @@ public class ChatRoomRepository {
 	
 </details>
 	
-<details>
-<summary> <b>설정</b> </summary>
-	
-
-</details>
 
 <details>
 <summary> <b>설정</b> </summary>
@@ -1021,7 +1016,7 @@ public class ChatRoomRepository {
 - 고로, STOMP를 이용해 처음부터 다시 작성해야 했다. (웹소켓을 어느정도 이해한 후라 이해하기 수월했다.)
 - 가장 어려운 점은 STOMP 구현 후에 고려해야 할  조건 이었다.(로그를 불러오거나 저장, 조건에 의해 방 생성제한 혹은 생성, 읽음확인 등등)
 
-
+</details>
 
   <details>
   <summary> <b>네비바 이미지 출력</b> </summary>
