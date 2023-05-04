@@ -27,6 +27,7 @@
 
 
 ## 3. 내 역할과 업무성과
+- 공통개발 역할(백엔드)
 - AWS S3 - AWS IAM, S3 bucket 생성 및 업로드 공통 클래스 작성
 - 아임포트 - 결제 API  
 - 인터셉터 - Auth 체크용 어노테이션 구현
@@ -527,7 +528,7 @@ public class AuthInterceptor extends HandlerInterceptorAdapter {
 <details>
 <summary> <b>STOMP 웹소켓 설정 클래스</b> </summary>
   
-- 엔드포인트와 publish subscribe 값 설정
+- 엔드포인트와 publish, subscribe 값 설정
 - 소켓JS 사용 설정
 
 ```java
@@ -1047,36 +1048,539 @@ public class ChatRoomRepository {
 	
 	
 	
-### 4.6. 게시판 CRUD
+### 4.6. 여행 플랜 게시판 CRUD
+
+- UI, UX 작업 진행중(2023.05.04 기준)
+
+![image](https://user-images.githubusercontent.com/120711406/236082373-9bc28945-930b-4bb1-b97a-9467dd3178e7.png)
+
+![image](https://user-images.githubusercontent.com/120711406/236082809-f12ec646-4e5b-446a-91ba-bb5df6a3a25e.png)
+
+![image](https://user-images.githubusercontent.com/120711406/236082905-87c569c5-4f98-42d5-ba1c-d29a4bfcb3eb.png)
+
+![image](https://user-images.githubusercontent.com/120711406/236082985-f3c54b13-b09a-483e-af48-94313a5830ee.png)
+
+
+
 
 <details>
-<summary> <b>프로필 이미지 등록/변경</b> </summary>
+<summary> <bController</b> </summary>
+
+- 작성, 리스트, 수정, 삭제 구현
+- 권한, 페이징, S3업로드 공통클래스 사용
+
+```java
+@Controller
+@RequestMapping("plan/*")
+public class PlanController {
+
+    final PlanService planService;
+    final UserService userService;
+    final S3FileUploadService s3FileUploadService;
+
+    //생성자 의존성 주입
+    public PlanController(PlanService planService, UserService userService, S3FileUploadService s3FileUploadService) {
+        this.planService = planService;
+        this.userService = userService;
+        this.s3FileUploadService = s3FileUploadService;
+    }
+
+    // 작성 get
+    @Auth(role = Auth.Role.PLANNER)
+    @GetMapping("create")
+    public String planGet() {
+        return "plan/plan_create";
+    }
+
+    // 작성 post
+    @PostMapping("create")
+    public String planPut(PlanDTO planDTO, ImgDTO imgDTO, HttpSession httpSession,
+                          @RequestParam("files[]") List<MultipartFile> multipartFile) throws IOException {
+        String user = (String) httpSession.getAttribute("user_id");
+        planDTO.setUser_id(user);
+        int plan_idx = planService.planCreate(planDTO); // 게시글 생성
+        if(plan_idx!=0){ // 이미지 파일 생성
+            if(multipartFile !=null || !multipartFile.isEmpty()){ // 이미지 파일 있으면
+                List<String> imgUrlList = s3FileUploadService.upload(multipartFile); // 서버에 이미지 파일 저장 후 URL값 List에 담기
+                planDTO.setPlan_idx(plan_idx); // 게시글 인덱스 set
+                planDTO.setP_img(imgUrlList); // 이미지 url set
+                boolean success = this.planService.planImgCreate(planDTO); // 이미지 저장 성공
+                if(success){
+                    return "redirect:/plan/list";
+                }
+            }
+        }
+        return "/plan/plan_create";
+    }
+
+    // 리스트 겟
+    @GetMapping("list")
+    public ModelAndView mv(ModelAndView modelAndView, Criteria cri, PlanDTO planDTO) {
+        List<PlanDTO> originalList = planService.imgList(planDTO);
+        List<PlanDTO> newList = new ArrayList<>(); // 인덱스+첫번째 이미지 값만 있는 dto 담을 List
+        for(PlanDTO dto : originalList){
+            List<String> planImgList = dto.getP_img(); // 이미지만 List에 담기
+            if(planImgList != null && !planImgList.isEmpty()){ //  이미지가 있는 경우
+                String firstImg = planImgList.get(0); // 첫번째 이미지 변수에 담기
+                PlanDTO newDto = new PlanDTO(); // 인덱스+첫번째 이미지 값 담을 dto
+                newDto.setPlan_idx(dto.getPlan_idx()); // 인덱스 담기
+                newDto.setP_img(Collections.singletonList(firstImg)); // 첫번째 이미지 담기
+                newList.add(newDto);
+            }
+        }
+        System.out.println("newList첫번째이미지 : " + newList.get(0).getP_img());
+        System.out.println("data : " + planService.list(cri));
+        modelAndView.addObject("imgList", newList); // 게시글 이미지 데이터
+        modelAndView.addObject("paging", planService.paging(cri)); // 페이징
+        modelAndView.addObject("data", planService.list(cri)); // 게시글 데이터
+        modelAndView.setViewName("plan/plan_list");
+        return modelAndView;
+    }
+
+    // 디테일
+    @GetMapping("list/{plan_idx}")
+    public ModelAndView planDetail(ModelAndView modelAndView, @PathVariable("plan_idx") int plan_idx) {
+        modelAndView.addObject("data", planService.detail(plan_idx));
+        modelAndView.setViewName("plan/plan_detail");
+        return modelAndView;
+    }
+
+    // 수정 겟
+    @GetMapping("list/edit")
+    public ModelAndView planEdit(ModelAndView modelAndView, HttpSession httpSession,
+                                 @RequestParam("idx") int plan_idx, @RequestParam("auth") String user_id) {
+        String user = (String) httpSession.getAttribute("user_id");
+        if (user.equals(user_id)) {
+            modelAndView.addObject("data", planService.detail(plan_idx));
+            modelAndView.setViewName("plan/plan_edit");
+        } else {
+            modelAndView.setViewName("/plan/plan_list");
+        }
+        return modelAndView;
+    }
+
+    // 수정 포스트
+    @PostMapping("list/edit")
+    public String planEditPut(PlanDTO planDTO, HttpSession httpSession,
+                              @RequestParam("idx") int plan_idx, @RequestParam("auth") String user_id,
+                              @RequestParam("files[]") List<MultipartFile> multipartFiles) {
+        String user = (String) httpSession.getAttribute("user_id");
+        if (user.equals(user_id)) {
+            planDTO.setPlan_idx(plan_idx);
+            planService.planEdit(planDTO); // 게시글 업데이트 (이미지 제외)
+            for (String fileName : planService.detail(plan_idx).getP_img()) { // list에 담겨있는 URL값 가져오기
+                s3FileUploadService.deleteFromS3(fileName); // s3서버 이미지 파일 삭제
+            }
+            boolean success = planService.planImgDelete(planDTO); // 기존 이미지 파일 삭제
+            if(success){  // 이미지 업데이트
+                try {
+                    if (multipartFiles != null || !multipartFiles.isEmpty()) {
+                        List<String> imgList = s3FileUploadService.upload(multipartFiles);
+                        planDTO.setP_img(imgList);
+                        planDTO.setPlan_idx(plan_idx);
+                        this.planService.planImgUpdate(planDTO);
+                    }
+                } catch (IOException e){
+                    throw new RuntimeException(e);
+                }
+            }
+            return "redirect:/plan/list";
+        } else {
+            return "redirect:/plan/list/edit";
+        }
+    }
+    // 삭제
+    @PostMapping("list/delete")
+    public String planDelete(int plan_idx, PlanDTO planDTO) {
+        planDTO.setPlan_idx(plan_idx);
+        planService.planDelete(plan_idx); // 게시글 삭제
+        for (String fileName : planService.detail(plan_idx).getP_img()) {
+            s3FileUploadService.deleteFromS3(fileName); // s3서버 이미지 파일 삭제
+        }
+        planService.planImgDelete(planDTO); // 이미지 삭제
+        return "redirect:/plan/list";
+    }
+}
+```
 
 </details>
 
 
 <details>
-<summary> <b>DTO</b> </summary>
+<summary> <b>Service</b> </summary>
 
+```java
+@Service
+public class PlanServiceImpl implements PlanService {
+
+    final
+    PlanDAO planDAO;
+
+    public PlanServiceImpl(PlanDAO planDAO) {
+        this.planDAO = planDAO;
+    }
+
+    // 플랜작성
+    @Override
+    public int planCreate(PlanDTO planDTO) {
+        int affectRowCnt = this.planDAO.create(planDTO);
+        if(affectRowCnt!=0){
+            return planDTO.getPlan_idx();
+        }
+        return 0;
+    }
+
+    //플랜 디테일
+    @Override
+    public PlanDTO detail(int plan_idx) {
+        return planDAO.detail(plan_idx);
+    }
+
+    //이미지 업로드
+    @Override
+    public boolean planImgCreate(PlanDTO planDTO) {
+        int affectRowCnt = this.planDAO.planImgCreate(planDTO);
+        if(affectRowCnt!=0){
+            return true;
+        }
+        return false;
+    }
+
+    //플랜 수정
+    @Override
+    public void planEdit(PlanDTO planDTO) {
+        planDAO.edit(planDTO);
+    }
+
+    @Override
+    public boolean planImgDelete(PlanDTO planDTO) {
+        int affectRowCnt = this.planDAO.planImgDelete(planDTO);
+        if(affectRowCnt !=0){
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void planImgUpdate(PlanDTO planDTO) {
+        this.planDAO.planImgUpdate(planDTO);
+    }
+
+    //플랜 리스트
+    @Override
+    public List<PlanDTO> list(Criteria cri) {
+        return planDAO.list(cri);
+    }
+
+    // paging처리 - 04.18 김범수
+    @Override
+    public PagingDTO paging(Criteria cri) {
+        PagingDTO paging = new PagingDTO();
+        paging.setCri(cri);
+        paging.setTotalCount(planDAO.totalConut(cri));
+        return paging;
+    }
+
+    @Override
+    public List<PlanDTO> imgList(PlanDTO planDTO) {
+
+        return this.planDAO.ImgList(planDTO);
+    }
+
+    //플랜 삭제
+    @Override
+    public void planDelete(int planIdx) {
+        planDAO.delete(planIdx);
+    }
+
+}
+```
 
 </details>
 
 <details>
-<summary> <b>Service / ServiceImpl</b> </summary>
+<summary> <b>SQL</b> </summary>
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="plan">
+
+    <!--플랜만들기-->
+    <insert id="create" parameterType="com.goott.pj3.plan.dto.PlanDTO" useGeneratedKeys="true" keyProperty="plan_idx">
+        INSERT INTO plan(user_id, start_date, end_date, price, plan_title, plan_detail)
+        VALUES (#{user_id}, #{start_date}, #{end_date}, #{price}, #{plan_title}, #{plan_detail})
+    </insert>
+
+    <insert id="createImg" parameterType="com.goott.pj3.plan.dto.PlanDTO">
+        insert into plan_img(plan_idx, p_img)
+             values
+                   <foreach collection="p_img" item="img" separator=",">
+                       (#{plan_idx}, #{img})
+                   </foreach>
+    </insert>
+
+    <!--플랜리스트-->
+    <select id="list" resultType="com.goott.pj3.plan.dto.PlanDTO">
+        SELECT plan_idx, plan_title, price, user_id
+        FROM plan
+        WHERE p_del_yn = 'N'
+        AND
+        <if test="option == 'user_id'">user_id like CONCAT('%',#{keyword},'%')</if>
+        <if test="option == 'title'">plan_title like CONCAT('%',#{keyword},'%')</if>
+        <if test="option == null or option == ''">1=1</if>
+        ORDER BY plan_idx DESC
+        LIMIT #{pageStart}, #{perPageNum}
+    </select>
+
+    <select id="imgList" resultMap="planListResultMap">
+           select i.p_img, i.plan_idx
+             from plan_img i left join plan p
+               on i.plan_idx = p.plan_idx
+            where p.p_del_yn='n'
+         order by p.plan_idx desc
+    </select>
+
+    <resultMap id="planListResultMap" type="com.goott.pj3.plan.dto.PlanDTO">
+        <id property="plan_idx" column="plan_idx"/>
+        <collection property="p_img" column="p_img" javaType="List" ofType="String">
+            <result column="p_img"/>
+        </collection>
+    </resultMap>
+
+    <!--페이징을 위한 카운트-->
+    <select id="totalCount" resultType="int">
+        SELECT count(plan_idx)
+        FROM plan
+        WHERE p_del_yn = 'N'
+        AND
+        <if test="option == 'user_id'">user_id like CONCAT('%',#{keyword},'%')</if>
+        <if test="option == 'title'">plan_title like CONCAT('%',#{keyword},'%')</if>
+        <if test="option == null or option == ''">1=1</if>
+    </select>
+
+    <!--플랜상세-->
+    <select id="detail" resultMap="planResultMap">
+        SELECT p.plan_title, p.plan_detail, p.user_id,
+               p.start_date, p.end_date, p.price, p.plan_idx, i.p_img_idx, i.p_img
+         FROM plan p left join plan_img i
+           on p.plan_idx = i.plan_idx
+        WHERE p.plan_idx = #{plan_idx}
+          and p.p_del_yn='n'
+    </select>
+
+    <resultMap id="planResultMap" type="com.goott.pj3.plan.dto.PlanDTO">
+        <id property="plan_idx" column="plan_idx"/>
+        <result property="plan_title" column="plan_title"/>
+        <result property="plan_detail" column="plan_detail"/>
+        <result property="user_id" column="user_id"/>
+        <result property="start_date" column="start_date"/>
+        <result property="end_date" column="end_date"/>
+        <result property="price" column="price"/>
+        <collection property="p_img_idx" column="p_img_idx" javaType="List" ofType="String">
+            <result column="p_img_idx"/>
+        </collection>
+        <collection property="p_img" column="p_img" javaType="List" ofType="String">
+            <result column="p_img"/>
+        </collection>
+    </resultMap>
+
+    <!--플랜수정-->
+    <update id="edit">
+        UPDATE plan
+        SET plan_title = #{plan_title},
+            plan_detail=#{plan_detail},
+            start_date=#{start_date},
+            end_date=#{end_date},
+            price=#{price}
+        WHERE plan_idx = #{plan_idx}
+    </update>
+
+    <delete id="planImgDelete">
+        delete
+          from plan_img
+         where plan_idx=#{plan_idx}
+    </delete>
+
+    <insert id="planImgUpdate" parameterType="com.goott.pj3.plan.dto.PlanDTO">
+        insert into plan_img(plan_idx, p_img)
+             values
+                   <foreach collection="p_img" item="img" separator=",">
+                       (#{plan_idx}, #{img})
+                   </foreach>
+    </insert>
+    <!--.플랜 수정 끝-->
+
+    <!--플랜삭제(DB삭제는 안함)-->
+    <update id="delete">
+        UPDATE plan
+        SET p_del_yn = 'Y'
+        WHERE plan_idx = #{plan_idx}
+    </update>
+    <!--플랜결제-->
+    <insert id="pay" parameterType="com.goott.pj3.plan.dto.PayDTO">
+        INSERT INTO pay(user_id, plan_idx, imp_uid, merchant_id)
+        VALUES (#{buyer_id},#{plan_idx},#{imp_uid},#{merchant_uid})
+    </insert>
+    <!--결제된 플랜 판매+1-->
+    <update id="count">
+        UPDATE plan
+        SET sale_count = (sale_count+1)
+        WHERE plan_idx=#{plan_idx}
+    </update>
+    <!--결제된 플랜 플래너성공 +1-->
+    <update id="success">
+        UPDATE user
+        SET success_count =(success_count+1)
+        WHERE user_id = #{planner_id}
+    </update>
+</mapper>
+```
   
+
+</details>
+
+<details>
+<summary> <b>JSP & JavaScript</b> </summary>
+
+- 플랜 디테일
+
+```jsp
+<input class="session" type="hidden" value="${sessionScope.user_id}">
+<input class="plan_idx" type="hidden" value="${data.plan_idx}">
+
+<label for="title">제목</label>
+<input id="title" type="text" value="${data.plan_title}">
+
+<label for="price">가격</label>
+<input id="price" type="text" value="${data.price}">
+
+<label for="detail">설명</label>
+<input id="detail" type="text" value="${data.plan_detail}">
+
+<p> 이미지: </p>
+<c:forEach var="img" items="${data.p_img}">
+    <img src="${img}" width="200" height="200" style="border: 1px solid blue;">
+</c:forEach>
+
+<%--<c:set var = "date_count" value = "${data.end_date - data.start_date}"/>--%>
+<%--<c:out value="${date_count}"/>--%>
+
+<p>기간 : </p>
+<p>시작날짜 : ${data.start_date}</p>
+<p>종료날짜 : ${data.end_date}</p>
+<label for="planner">플래너</label>
+<input id="planner" type="text" value="${data.user_id}">
+
+<form action="/chat/room" method="post">
+    <p>폼태그 안-> 추후 hidden</p>
+    <input type="hidden" name="name" id="name" class="form-control" value="">
+    <input type="hidden" name="send_id" id="send_id" class="form-control" value="${sessionScope.user_id}">
+    <input type="hidden" name="receive_id" id="receive_id" class="form-control" value="${data.user_id}">
+    <c:if test="${sessionScope.auth == 'auth_c'}">
+    <button type="submit" class="btn btn-secondary">플래너에게 메세지 보내기</button>
+    </c:if>
+</form>
+
+<c:if test="${data.user_id == sessionScope.user_id}">
+    <button type="button" onclick="location.href='edit?idx=${data.plan_idx}&auth=${data.user_id}'">수정</button>
+    <button data-id="${data.plan_idx}" id="delete">삭제</button>
+</c:if>
+<button id="cart" type="button" onclick="addCart()">카트담기</button>
+<button type="button" onclick="kakao()">결제</button>
+```
+
+- 플랜 
+
+```javascript
+    async function previewFile() {
+        var preview = document.getElementById("preview"); // 미리보기 띄울 div
+        var files = document.getElementById('file-input').files; // img 파일들
+        var cnt = 0; // 이미지 갯수
+        preview.innerHTML = ''; // 미리보기 초기화
+
+        for (const file of files) {  // 반복문 한번 반복 때마다 이미지 1개씩 view
+            await new Promise((resolve, reject) => {
+                var reader = new FileReader(); // FileReader 객체를 생성
+                reader.onload = function() { // 파일 로드가 성공시 호출 될 함수
+                    var img = document.createElement("img"); // img 생성
+                    img.src = reader.result; // 로드된 파일을 img 요소의 src에 할당
+                    img.onload = () => { // 이미지 로드가 완료되면 이 함수가 호출
+                        preview.appendChild(img); // preview 요소의 자식 노드로 img 추가
+                        resolve(); // 결과 호출
+                        cnt++ // 이미지 갯수 더하기
+                        if(cnt == files.length){
+                            $('#upload-btn').prop('disabled', false); // 이미지 파일 올리면 저장버튼 활성화
+                        }
+                        else if(cnt != files.length){
+                            $('#upload-btn').prop('disabled', true); // 이미지 파일 취소 할 경우 다시 비활성화
+                        }
+                    }
+                };
+                reader.onerror = function() {
+                    reject(new Error('파일 로드 실패'));
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+    /**
+     * 이미지 업로드 조건
+     * @type {RegExp}
+     */
+    let regex = new RegExp("(.*?)\.(jpg|png)$");         // jpg,png 파일만 허용
+    let maxSize = 41943040;                              // file 제한 용량 40MB
+
+    $("input[type='file']").on("change", function(e){
+        let fileInput = document.querySelector("#fileItem");
+        let fileList = fileInput.files;
+        let fileObj = fileList[0];
+
+        if(!fileCheck(fileObj.name, fileObj.size)) return false;
+        alert("통과")
+    });
+
+    // 이미지 체크 로직
+    function fileCheck(fileName, fileSize){
+        if(fileSize >= maxSize){
+            alert("파일 사이즈 초과 : 최대 40MB");
+            return false;
+        }
+        if(!regex.test(fileName)){
+            alert("해당 종류의 파일은 업로드할 수 없습니다. 업로드 가능한 file : jpg, png");
+            return false;
+        }
+    }
+```
 
 </details>
 	  
 <details>
-<summary> <b>DAO</b> </summary>
+<summary> <b>어려웠던 점</b> </summary>
+
+- 기능이 늘어나고 작업자가 늘어날수록 서로의 스타일이 달라서 복잡해졌다. 
+- mybatis에서 결과값을 return받을때 null 처리와 return type 때문에 고생했음.
   
 
 </details>
   
 <details>
-<summary> <b>XML</b> </summary>
+<summary> <b>앞으로 해야될 것</b> </summary>
+
+- 서비스와 컨트롤러의 분리를 더 철저히 하는 습관을 가져보자.
+- 협업시 조금더 철저하게 디폴트 기준을 잘 정해놓고 서로 소통하자.
 
 </details>
+
+
+---
+
+
+###4.7. 카트
+
+- UI, UX 구현중(2023.05.03 기준)
+
+![image](https://user-images.githubusercontent.com/120711406/236091379-758e9633-fa31-4bfb-b13d-0c6985ece2fc.png)
 
 
 <details>
