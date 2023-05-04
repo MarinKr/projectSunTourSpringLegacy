@@ -219,7 +219,7 @@ public class S3FileUploadService {
 <summary> <b>앞으로 해야될 것</b> </summary>
 	
 - AWS RDS 테스트중 추가 결제가 되었음. 학습이 더 필요함.
-- 깃허브 액션과 S3 EC2 연계로 CICD구현(진행중)
+- 깃허브 액션과 S3 EC2 연계로 CI/CD구현(진행중)
 - EC2 학습 진행중 리눅스 학습의 필요성을 느낌.
 	
 </details>
@@ -1825,11 +1825,13 @@ public class CartServiceImpl implements CartService {
 <details>
 <summary> <b>앞으로 해야할 것</b> </summary>
 
-- Github action 연동 ci/cd 배포까지
-- Ubuntu
+- Github action 연동 CI/CD 배포까지
+- Ubuntu, Docker
 - 프로젝트 전반적인 코드리뷰와 리팩토링
-- Spring Test 과정 학습
-- 
+- Spring Test 코드 작성 학습
+- Spring boot 복습
+- 자료구조 알고리즘
+- 취   직
 	
 </details>
 
