@@ -1064,7 +1064,7 @@ public class ChatRoomRepository {
 
 
 <details>
-<summary> <bController</b> </summary>
+<summary> <b> Controller </b> </summary>
 
 - 작성, 리스트, 수정, 삭제 구현
 - 권한, 페이징, S3업로드 공통클래스 사용
@@ -1576,7 +1576,7 @@ public class PlanServiceImpl implements PlanService {
 ---
 
 
-###4.7. 카트
+### 4.7. 카트
 
 - UI, UX 구현중(2023.05.03 기준)
 
