@@ -1061,7 +1061,20 @@ public class ChatRoomRepository {
 ![image](https://user-images.githubusercontent.com/120711406/236082985-f3c54b13-b09a-483e-af48-94313a5830ee.png)
 
 
+<details>
+<summary> <b> 기능 설명 </b> </summary>
+	
+- 이미지 리스트 형식의 게시판
+- 일반 유저는 플래너가 작성한 여행 플랜을 구매할 수 있음.
+- 일반 유저는 여행 플랜을 카트에 담을 수 있음.
+- 일반 유저는 해당 플래너와 채팅을 할 수 있음.
+- 플래너는 플랜을 생성할 수 있음.
+- 플래너는 유저의 문의사항을 채팅을 통해 처리할 수 있음.
+- 플래너는 본인이 올린 플랜을 수정/삭제 할 수 있음.
+- 삭제는 DB에서 영구 삭제되지 않고 해당 컬럼만 변경됨.
 
+	
+</details>
 
 <details>
 <summary> <b> Controller </b> </summary>
@@ -1584,15 +1597,240 @@ public class PlanServiceImpl implements PlanService {
 
 
 <details>
-<summary> <b>네비바 이미지 출력</b> </summary>
+<summary> <b> 기능설명 </b> </summary>
+	
+- 유저는 구매하고자하는 여행 플랜을 카트에 담을 수 있다.
+- 카트는 체크박스를 이용해 다중 삭제를 할 수 있다.
+- 플랜은 중복되어 담기지 않는다.
 
-  
 </details>
 
 <details>
-<summary> <b>프로필 이미지 등록/변경</b> </summary>
+<summary> <b>Controller</b> </summary>
+
+```java
+@Controller
+public class CartController {
+    final
+    CartService cartService;
+
+    public CartController(CartService cartService) {
+        this.cartService = cartService;
+    }
+
+    // 카트추가
+    @PostMapping(value = "/addcart", consumes = "application/json")
+    @ResponseBody
+    public Map<String, Object> planCart(@RequestBody PlanDTO planDTO) {
+        cartService.addCart(planDTO);
+        Map<String, Object> map = new HashMap<>();
+        map.put("cart", "카트담기");
+        return map;
+    }
+
+    //카트 보여주기 데모
+    @GetMapping("cart")
+    public ModelAndView cart(ModelAndView mv, PlanDTO planDTO, HttpSession httpSession) {
+        String user = (String) httpSession.getAttribute("user_id");
+        planDTO.setUser_id(user);
+        mv.addObject("cart", cartService.getCart(planDTO));
+        mv.setViewName("cart/cart_demo");
+        return mv;
+    }
+
+    //카트 삭제
+    @DeleteMapping("cart/delete")
+    public String delete(@RequestParam("delList") List<Integer> list) {
+        for (Integer plan_idx : list) cartService.deleteCart(plan_idx);
+        return "redirect:/cart";
+    }
+}
+
+```
 
 </details>
+	
+<details>
+<summary> <b>Service</b> </summary>
 
+```java
+@Service
+public class CartServiceImpl implements CartService {
+    final
+    CartDAO cartDAO;
+
+    public CartServiceImpl(CartDAO cartDAO) {
+        this.cartDAO = cartDAO;
+    }
+
+    //카트추가
+    @Override
+    public void addCart(PlanDTO planDTO) {
+        cartDAO.addCart(planDTO);
+    }
+
+    //카트불러오기
+    @Override
+    public List<PlanDTO> getCart(PlanDTO planDTO) {
+        return cartDAO.getCart(planDTO);
+    }
+
+    //카트삭제
+    @Override
+    public void deleteCart(int planIdx) {
+        cartDAO.deleteCart(planIdx);
+
+    }
+}
+
+```
+	
+</details>
+	
+<details>
+<summary> <b>SQL</b> </summary>
+	
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cart">
+    <!--카트추가-->
+    <insert id="add" parameterType="com.goott.pj3.plan.dto.PayDTO">
+        INSERT INTO plan_cart(user_id, plan_idx)
+        SELECT #{user_id}, #{plan_idx}
+        FROM dual
+        WHERE not exists(select * from plan_cart where user_id = #{user_id} And plan_idx = #{plan_idx})
+    </insert>
+    <!--카트가져오기-->
+    <select id="get" resultType="com.goott.pj3.plan.dto.PlanDTO">
+        SELECT plan_title, plan_idx, p_del_yn
+        FROM plan
+        WHERE plan_idx in (select plan_idx
+                           from plan_cart
+                           where user_id = #{user_id})
+    </select>
+    <!--카트삭제-->
+    <delete id="delete">
+        DELETE
+        FROM plan_cart
+        WHERE plan_idx = #{plan_idx}
+    </delete>
+    <!--결제시 카트빼기-->
+    <delete id="subCart">
+        DELETE
+        FROM plan_cart
+        WHERE user_id = #{buyer_id}
+          AND plan_idx = #{plan_idx}
+    </delete>
+</mapper>
+```
+	
+</details>
+	
+<details>
+<summary> <b>jsp & JavaScript</b> </summary>
+	
+- 카트담기
+
+```javascript
+    function addCart() {
+        let cart = {
+            plan_idx: plan_idx,
+            user_id: buyer
+        };
+        $.ajax({
+            type: 'Post',
+            url: '/addcart',
+            dataType: 'json',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify(cart)
+        }).done(function (rsp) {
+            if (rsp.cart === '카트담기') {
+                alert('카트담기성공')
+            } else {
+                alert('카트담기실패');
+            }
+
+        }).fail(function (error) {
+            alert('에이젝스 실패')
+        })
+    }
+
+```
+	
+- 카트 페이지
+
+```jsp
+<form name="delete" action="cart/delete" method="POST">
+    <input type="hidden" name="_method" value="delete"/>
+    <c:if test="${not empty cart}">
+        <tr>
+            <c:forEach var="item" items="${cart}">
+                <c:if test="${item.p_del_yn eq 'N'}">
+                    <td><a href="plan/list/${item.plan_idx}">${item.plan_title}</a></td>
+                    <td>${item.plan_idx}</td>
+                    <input name="delList" type="checkbox" value="${item.plan_idx}"/>
+                    <br>
+                </c:if>
+            </c:forEach>
+            <button type="submit">삭제</button>
+```
+	
+</details>
+	
+	
+---
+	
+
+	
+### 4.7. 그 외
+	
+- Restfull한 라우팅을 위해서 httpMethodFilter를 사용.
+
+![image](https://user-images.githubusercontent.com/120711406/236096218-a127c7eb-bff5-46e0-a053-21baa9f237ed.png)
+	
+- 에러 핸들링
+
+![image](https://user-images.githubusercontent.com/120711406/236096287-01f1f272-41a0-4b99-8cd7-e8349c1f0c3a.png)
+
+	
+---
+	
+	
+
+## 5. 프로젝트 전반적인 후기
+	
+<details>
+<summary> <b>어려웠던 점</b> </summary>
+	
+- 직전 프로젝트가 Nodejs였기 때문에, 다시 Java에 적응해야 했음.(사실 Java의 매력을 더 느끼게됨)
+- 3번째 프로젝트임에도 불구하고 협업은 항상 어려움/(기본적으로 정해놓고 가야될 것들이 더 상세해야됨)
+- DB 설계의 영역은 미래를 내다보는 듯한 영역이라고 느껴짐.(경험이 중요한것 같음)
+- Spring Legacy를 사용하여 외부 라이브러리를 쓸때엔 최신정보를 찾기 매우 힘들었음.
+- UI 작업자와 소통이 부족했던것 같음. (동상이몽)
+	
+</details>
+
+<details>
+<summary> <b>발전된 점</b> </summary>
+
+- 구조와 흐름이 보임
+- 커리큘럼에 없었던 Nodejs로 2차프로젝트를 해본 결과, 새로운 라이브러리나 기술에 대해 두려움이 사라짐.
+- 주석을 전보다 잘 쓰게됨. (더 명확하고 간결하게 쓰도록 발전해야함.)
+- AWS와 리눅스, ci/cd 등 더 넓은 시야를 갖게 됨
+- 에러 해결능력이 많이 향상됨 (구조와 흐름이 이제 보이기 떄문인것 같음)
+	
+</details>
+	
+<details>
+<summary> <b>앞으로 해야할 것</b> </summary>
+
+- Github action 연동 ci/cd 배포까지
+- Ubuntu
+- 프로젝트 전반적인 코드리뷰와 리팩토링
+- Spring Test 과정 학습
+- 
+	
+</details>
 
 
