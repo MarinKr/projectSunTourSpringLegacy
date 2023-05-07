@@ -44,7 +44,7 @@
 
 ![image](https://user-images.githubusercontent.com/120711406/235872521-33d3533d-7baf-4a72-9449-1253a5e2006d.png)
 
-[3차ERD설계.pdf](https://github.com/MarinKr/projectSunTourSpringLegacy/files/11413920/3.ERD.pdf)
+![image](https://user-images.githubusercontent.com/120711406/236657662-07e16633-1e2e-4172-aedc-f3bec7d7db89.png)
 
 
 	
